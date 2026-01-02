@@ -28,7 +28,11 @@ def load_config() -> Config:
     static_dir = Path(_env_value("ZEROTERM_STATIC_DIR", str(root_dir / "web"))).resolve()
 
     bind = _env_value("ZEROTERM_BIND", "0.0.0.0")
-    port = int(_env_value("ZEROTERM_PORT", "8080"))
+    port_value = _env_value("ZEROTERM_PORT", "8080")
+    try:
+        port = int(port_value)
+    except ValueError:
+        port = 8080
     shell = _env_value("ZEROTERM_SHELL", "/bin/bash")
     term = _env_value("ZEROTERM_TERM", "linux")
     cwd = os.environ.get("ZEROTERM_CWD")

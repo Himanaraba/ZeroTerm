@@ -106,7 +106,21 @@ def serve_static(conn, target: str, static_dir: Path) -> None:
         )
         return
 
-    body = resolved.read_bytes()
+    try:
+        body = resolved.read_bytes()
+    except OSError:
+        body = b"Internal Server Error"
+        send_response(
+            conn,
+            500,
+            {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Content-Length": str(len(body)),
+            },
+            body,
+        )
+        return
+
     content_type = CONTENT_TYPES.get(resolved.suffix.lower(), "application/octet-stream")
     send_response(
         conn,

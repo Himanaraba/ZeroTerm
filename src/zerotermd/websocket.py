@@ -52,13 +52,16 @@ def build_close_frame() -> bytes:
 
 
 class WebSocketBuffer:
-    def __init__(self) -> None:
+    def __init__(self, max_size: int = 2_000_000) -> None:
         self._buffer = bytearray()
         self._partial_opcode: int | None = None
         self._partial_payload = bytearray()
+        self._max_size = max_size
 
     def feed(self, data: bytes) -> list[tuple[int, bytes]]:
         self._buffer.extend(data)
+        if len(self._buffer) > self._max_size:
+            raise ValueError("WebSocket buffer exceeded limit")
         messages: list[tuple[int, bytes]] = []
         while True:
             frame = self._next_frame()

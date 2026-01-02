@@ -42,23 +42,28 @@ def run_server(config: Config) -> None:
 
 def _handle_client(conn: socket.socket, addr: tuple[str, int], config: Config) -> None:
     with conn:
-        request = read_http_request(conn)
-        if request is None:
-            return
-
-        if request.method != "GET":
-            _send_text(conn, 405, b"Method Not Allowed")
-            return
-
-        if _is_websocket_request(request.headers):
-            if not _websocket_handshake(conn, request.headers):
-                _send_text(conn, 400, b"Bad Request")
+        try:
+            conn.settimeout(5.0)
+            request = read_http_request(conn)
+            conn.settimeout(None)
+            if request is None:
                 return
-            logger.info("WebSocket connected from %s:%s", addr[0], addr[1])
-            _run_ws_session(conn, config)
-            return
 
-        serve_static(conn, request.target, config.static_dir)
+            if request.method != "GET":
+                _send_text(conn, 405, b"Method Not Allowed")
+                return
+
+            if _is_websocket_request(request.headers):
+                if not _websocket_handshake(conn, request.headers):
+                    _send_text(conn, 400, b"Bad Request")
+                    return
+                logger.info("WebSocket connected from %s:%s", addr[0], addr[1])
+                _run_ws_session(conn, config)
+                return
+
+            serve_static(conn, request.target, config.static_dir)
+        except Exception:
+            logger.exception("Client handling failed for %s:%s", addr[0], addr[1])
 
 
 def _send_text(conn: socket.socket, status: int, body: bytes) -> None:
@@ -84,6 +89,9 @@ def _websocket_handshake(conn: socket.socket, headers: dict[str, str]) -> bool:
     key = headers.get("sec-websocket-key")
     if not key:
         return False
+    version = headers.get("sec-websocket-version")
+    if version and version != "13":
+        return False
     accept = build_accept_key(key)
     response = (
         "HTTP/1.1 101 Switching Protocols\r\n"
@@ -108,7 +116,14 @@ def _run_ws_session(conn: socket.socket, config: Config) -> None:
                 data = conn.recv(4096)
                 if not data:
                     break
-                for opcode, payload in ws_buffer.feed(data):
+                try:
+                    messages = ws_buffer.feed(data)
+                except ValueError as exc:
+                    logger.warning("WebSocket buffer error: %s", exc)
+                    conn.sendall(build_close_frame())
+                    stop_event.set()
+                    break
+                for opcode, payload in messages:
                     if opcode == OPCODE_BINARY:
                         os.write(master_fd, payload)
                     elif opcode == OPCODE_TEXT:
