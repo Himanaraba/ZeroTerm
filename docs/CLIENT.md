@@ -20,3 +20,4 @@ small VT100-style subset to keep the transport thin and predictable.
 
 - The client always forwards raw input bytes to the PTY.
 - Full-screen TUI apps work for basic navigation; complex rendering may be limited.
+- Touch devices show a small key bar (ESC/TAB/CTRL+C/CTRL+D/arrows).

@@ -5,6 +5,7 @@
   const termTextEl = document.getElementById("terminal-text");
   const cursorEl = document.getElementById("cursor");
   const inputEl = document.getElementById("terminal-input");
+  const keysEl = document.getElementById("terminal-keys");
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8");
@@ -522,6 +523,17 @@
     socket.send(encoder.encode(text));
   };
 
+  const keyMap = {
+    esc: "\x1b",
+    tab: "\t",
+    "ctrl-c": "\x03",
+    "ctrl-d": "\x04",
+    up: "\x1b[A",
+    down: "\x1b[B",
+    left: "\x1b[D",
+    right: "\x1b[C",
+  };
+
   const mapKey = (event) => {
     if (event.ctrlKey && !event.altKey && !event.metaKey) {
       if (event.key === " ") {
@@ -608,6 +620,20 @@
   termEl.addEventListener("touchstart", () => {
     inputEl.focus();
   });
+
+  if (keysEl) {
+    keysEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-key]");
+      if (!button) {
+        return;
+      }
+      const seq = keyMap[button.dataset.key];
+      if (seq) {
+        sendInput(seq);
+        inputEl.focus();
+      }
+    });
+  }
 
   window.addEventListener("resize", () => {
     clearTimeout(window.__zerotermResize);
