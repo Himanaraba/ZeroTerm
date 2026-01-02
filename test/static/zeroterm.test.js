@@ -462,6 +462,7 @@
   const view = new TerminalView(termTextEl, cursorEl);
   const promptText = "zeroterm@pi:~$ ";
   let currentLine = "";
+  let lastInputAt = Date.now();
 
   const setStatus = (text, tone) => {
     statusEl.textContent = text;
@@ -536,6 +537,9 @@
   };
 
   const handleInput = (text) => {
+    if (text && text.length) {
+      lastInputAt = Date.now();
+    }
     let i = 0;
     while (i < text.length) {
       const ch = text[i];
@@ -667,6 +671,86 @@
     });
   }
 
+  const createEpaperDebug = () => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .epaper-debug {
+        position: fixed;
+        right: 16px;
+        bottom: 16px;
+        width: 250px;
+        height: 122px;
+        background: #f4f3e8;
+        color: #111;
+        border: 2px solid #111;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
+        font-family: "IBM Plex Mono", "Iosevka Term", monospace;
+        padding: 8px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        z-index: 999;
+      }
+      .epaper-debug__title {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .epaper-debug__lines {
+        white-space: pre;
+        font-size: 12px;
+        line-height: 1.2;
+        flex: 1;
+      }
+      .epaper-debug__hint {
+        font-size: 10px;
+        opacity: 0.7;
+      }
+      @media (max-width: 720px) {
+        .epaper-debug {
+          right: 10px;
+          bottom: 10px;
+          transform: scale(0.9);
+          transform-origin: bottom right;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    const panel = document.createElement("div");
+    panel.className = "epaper-debug";
+    panel.innerHTML = `
+      <div class="epaper-debug__title">E-PAPER PREVIEW</div>
+      <div class="epaper-debug__lines"></div>
+      <div class="epaper-debug__hint">debug only</div>
+    `;
+    document.body.appendChild(panel);
+
+    const linesEl = panel.querySelector(".epaper-debug__lines");
+    const ssids = ["ZEROTERM-LAB", "FIELD-NODE", "KALI-NET"];
+
+    const render = () => {
+      const host = location.hostname;
+      const ip = /\d+\.\d+\.\d+\.\d+/.test(host)
+        ? host
+        : `192.168.0.${Math.floor(20 + Math.random() * 180)}`;
+      const status = Date.now() - lastInputAt < 20000 ? "RUNNING" : "READY";
+      const wifiState = navigator.onLine ? "UP" : "DOWN";
+      const ssid = ssids[Math.floor(Math.random() * ssids.length)];
+      const battery = Math.floor(40 + Math.random() * 55);
+      const lines = [
+        `ZEROTERM ${status}`,
+        `IP ${ip}`,
+        `WIFI ${wifiState} ${ssid}`,
+        `BAT ${battery}%`,
+      ];
+      linesEl.textContent = lines.join("\n");
+    };
+
+    render();
+    setInterval(render, 30000);
+  };
+
   window.addEventListener("resize", () => {
     clearTimeout(window.__zerotermResize);
     window.__zerotermResize = setTimeout(() => {
@@ -681,4 +765,5 @@
   printPrompt(true);
   inputEl.value = "";
   inputEl.focus();
+  createEpaperDebug();
 })();
