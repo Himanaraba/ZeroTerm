@@ -9,7 +9,7 @@ from .drivers.base import DisplayError
 from .drivers.file import FileDisplay
 from .drivers.null import NullDisplay
 from .metrics import read_battery, read_service_state, read_wifi
-from .render import RenderConfig, render_lines
+from .render import RenderConfig, render_status
 
 logger = logging.getLogger(__name__)
 
@@ -30,23 +30,21 @@ def _format_wifi(wifi_state: str | None) -> str:
 
 def _format_battery(percent: int | None, status: str | None) -> str:
     if percent is None:
-        return "BAT --"
+        return "--"
     if status:
-        return f"BAT {percent}% {status.upper()}"
-    return f"BAT {percent}%"
+        return f"{percent}% {status.upper()}"
+    return f"{percent}%"
 
 
-def build_lines(service_state: str | None, wifi, battery) -> list[str]:
+def build_payload(service_state: str | None, wifi, battery) -> tuple[str, str, str, str]:
     status = _format_status(service_state)
-    line1 = f"ZEROTERM {status}"
     ip = wifi.ip or "--"
-    line2 = f"IP {ip}"
     wifi_state = _format_wifi(wifi.state)
-    line3 = f"WIFI {wifi_state}"
+    wifi_text = wifi_state
     if wifi.ssid:
-        line3 = f"{line3} {wifi.ssid}"
-    line4 = _format_battery(battery.percent, battery.status)
-    return [line1, line2, line3, line4]
+        wifi_text = f"{wifi_text} {wifi.ssid}"
+    battery_text = _format_battery(battery.percent, battery.status)
+    return status, ip, wifi_text, battery_text
 
 
 def main() -> None:
@@ -90,11 +88,18 @@ def main() -> None:
             wifi = read_wifi(config.iface)
             battery = read_battery(config.battery_path, config.battery_cmd)
             service = read_service_state(config.service_name)
-            lines = build_lines(service.state, wifi, battery)
-            payload = "\n".join(lines)
+            status, ip, wifi_text, battery_text = build_payload(service.state, wifi, battery)
+            payload = "\n".join([status, ip, wifi_text, battery_text])
             if payload != last_payload and not render_failed:
                 try:
-                    image = render_lines(lines, render_config)
+                    image = render_status(
+                        status=status,
+                        ip=ip,
+                        wifi=wifi_text,
+                        battery=battery_text,
+                        updated=None,
+                        config=render_config,
+                    )
                 except RuntimeError as exc:
                     logger.error("Render failed: %s", exc)
                     render_failed = True

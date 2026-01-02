@@ -685,26 +685,36 @@
         border: 2px solid #111;
         box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
         font-family: "IBM Plex Mono", "Iosevka Term", monospace;
-        padding: 8px 10px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
         z-index: 999;
       }
-      .epaper-debug__title {
+      .epaper-debug__header {
+        background: #111;
+        color: #f4f3e8;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 6px;
         font-size: 10px;
-        letter-spacing: 0.12em;
+        letter-spacing: 0.18em;
         text-transform: uppercase;
       }
-      .epaper-debug__lines {
-        white-space: pre;
+      .epaper-debug__body {
+        flex: 1;
+        padding: 6px 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
         font-size: 12px;
         line-height: 1.2;
-        flex: 1;
       }
       .epaper-debug__hint {
-        font-size: 10px;
-        opacity: 0.7;
+        padding: 2px 8px 6px;
+        font-size: 9px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        opacity: 0.6;
       }
       @media (max-width: 720px) {
         .epaper-debug {
@@ -720,13 +730,23 @@
     const panel = document.createElement("div");
     panel.className = "epaper-debug";
     panel.innerHTML = `
-      <div class="epaper-debug__title">E-PAPER PREVIEW</div>
-      <div class="epaper-debug__lines"></div>
+      <div class="epaper-debug__header">
+        <span>ZEROTERM</span>
+        <span class="epaper-debug__status"></span>
+      </div>
+      <div class="epaper-debug__body">
+        <div class="epaper-debug__line" data-line="ip"></div>
+        <div class="epaper-debug__line" data-line="wifi"></div>
+        <div class="epaper-debug__line" data-line="bat"></div>
+      </div>
       <div class="epaper-debug__hint">debug only</div>
     `;
     document.body.appendChild(panel);
 
-    const linesEl = panel.querySelector(".epaper-debug__lines");
+    const statusEl = panel.querySelector(".epaper-debug__status");
+    const ipEl = panel.querySelector('[data-line="ip"]');
+    const wifiEl = panel.querySelector('[data-line="wifi"]');
+    const batEl = panel.querySelector('[data-line="bat"]');
     const ssids = ["ZEROTERM-LAB", "FIELD-NODE", "KALI-NET"];
 
     const render = () => {
@@ -738,13 +758,10 @@
       const wifiState = navigator.onLine ? "UP" : "DOWN";
       const ssid = ssids[Math.floor(Math.random() * ssids.length)];
       const battery = Math.floor(40 + Math.random() * 55);
-      const lines = [
-        `ZEROTERM ${status}`,
-        `IP ${ip}`,
-        `WIFI ${wifiState} ${ssid}`,
-        `BAT ${battery}%`,
-      ];
-      linesEl.textContent = lines.join("\n");
+      statusEl.textContent = status;
+      ipEl.textContent = `IP ${ip}`;
+      wifiEl.textContent = `WIFI ${wifiState} ${ssid}`;
+      batEl.textContent = `BAT ${battery}%`;
     };
 
     render();
