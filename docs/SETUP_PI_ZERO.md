@@ -43,6 +43,12 @@ sudo apt install -y python3-pil python3-spidev python3-rpi.gpio
 
 Enable SPI for the e-Paper display (raspi-config or boot config), then reboot.
 
+Quick bootstrap (installs deps + enables services):
+
+```
+sudo ZEROTERM_ENABLE_EPAPER=1 bash scripts/bootstrap_pi_zero.sh
+```
+
 Optional (Waveshare library helper):
 
 ```

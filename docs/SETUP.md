@@ -15,6 +15,12 @@ Optional (e-Paper status display):
 
 Enable SPI if you use an e-Paper display.
 
+Quick bootstrap (installs deps + enables services):
+
+```
+sudo ZEROTERM_ENABLE_EPAPER=1 bash scripts/bootstrap_pi_zero.sh
+```
+
 Optional (Waveshare library helper):
 
 ```
