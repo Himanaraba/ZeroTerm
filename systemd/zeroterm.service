@@ -1,0 +1,19 @@
+[Unit]
+Description=ZeroTerm PTY over Web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/zeroterm
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/zeroterm/src
+EnvironmentFile=/etc/zeroterm/zeroterm.env
+ExecStart=/usr/bin/python3 -m zerotermd
+Restart=on-failure
+RestartSec=2
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
