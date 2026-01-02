@@ -25,3 +25,44 @@ loads /etc/zeroterm/zeroterm.env so you can change defaults without editing code
 
 - ZEROTERM_STATIC_DIR (default: /opt/zeroterm/web)
   Directory that serves static assets for the web client.
+
+## Status / e-Paper Variables
+
+- ZEROTERM_STATUS_INTERVAL (default: 30)
+  Refresh interval in seconds for the e-Paper status display.
+
+- ZEROTERM_STATUS_IFACE (default: wlan0)
+  Network interface to display IP/Wi-Fi status from.
+
+- ZEROTERM_STATUS_SERVICE (default: zeroterm.service)
+  systemd service name used to decide READY/RUNNING state.
+
+- ZEROTERM_EPAPER_DRIVER (default: waveshare)
+  Display backend: waveshare, file, or null.
+
+- ZEROTERM_EPAPER_MODEL (default: epd2in13_V3)
+  Waveshare Python module name to load.
+
+- ZEROTERM_EPAPER_LIB (default: empty)
+  Optional path to the waveshare_epd library.
+
+- ZEROTERM_EPAPER_OUTPUT (default: /var/lib/zeroterm/epaper.png)
+  Output path when ZEROTERM_EPAPER_DRIVER=file.
+
+- ZEROTERM_EPAPER_FONT_PATH (default: empty)
+  Optional TTF font path for e-Paper text rendering.
+
+- ZEROTERM_EPAPER_FONT_SIZE (default: 14)
+  Font size for e-Paper rendering.
+
+- ZEROTERM_EPAPER_WIDTH / ZEROTERM_EPAPER_HEIGHT (default: 250x122)
+  Display size override in pixels.
+
+- ZEROTERM_EPAPER_ROTATE (default: 0)
+  Rotation (0/90/180/270).
+
+- ZEROTERM_BATTERY_CMD (default: empty)
+  Optional command that prints battery percent.
+
+- ZEROTERM_BATTERY_PATH (default: /sys/class/power_supply)
+  Optional path to battery capacity files.

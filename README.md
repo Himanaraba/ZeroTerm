@@ -122,7 +122,7 @@ This repository includes a minimal, framework-free baseline:
 
 - Python 3 standard library PTY-over-WebSocket service
 - Minimal HTML/CSS/JS terminal client
-- systemd unit for headless startup
+- systemd units for terminal + e-Paper status
 - Environment-based configuration
 
 ---
@@ -132,6 +132,7 @@ This repository includes a minimal, framework-free baseline:
 - docs/ARCHITECTURE.md
 - docs/SETUP_PI_ZERO.md
 - docs/SECURITY.md
+- docs/EPAPER.md
 - docs/CONFIGURATION.md
 - docs/PROTOCOL.md
 - docs/CLIENT.md

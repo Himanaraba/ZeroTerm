@@ -231,7 +231,7 @@ ZeroTerm の **設計思想と基盤構造** を示すものです。
 
 - Python 3 標準ライブラリによる PTY over WebSocket サービス
 - 最小構成の HTML/CSS/JS 端末クライアント
-- systemd 起動ユニット
+- systemd 起動ユニット（端末 + ePaper 状態表示）
 - 環境変数ベースの設定
 
 ---
@@ -241,6 +241,7 @@ ZeroTerm の **設計思想と基盤構造** を示すものです。
 - docs/ARCHITECTURE.md
 - docs/SETUP_PI_ZERO.md
 - docs/SECURITY.md
+- docs/EPAPER.md
 - docs/CONFIGURATION.md
 - docs/PROTOCOL.md
 - docs/CLIENT.md

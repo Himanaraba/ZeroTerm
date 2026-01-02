@@ -35,10 +35,30 @@ sudo apt update
 sudo apt install -y python3 git
 ```
 
+Optional (e-Paper status display):
+
+```
+sudo apt install -y python3-pil python3-spidev python3-rpi.gpio
+```
+
+Enable SPI for the e-Paper display (raspi-config or boot config), then reboot.
+
+Optional (Waveshare library helper):
+
+```
+sudo bash scripts/install_waveshare_epd.sh
+```
+
 ## 5) Deploy the repo
 ```
 sudo mkdir -p /opt/zeroterm
 sudo git clone <your-repo-url> /opt/zeroterm
+```
+
+Quick install (from repo root):
+
+```
+sudo bash scripts/install_pi_zero.sh
 ```
 
 ## 6) Decide runtime user
@@ -54,11 +74,20 @@ sudo cp /opt/zeroterm/config/zeroterm.env /etc/zeroterm/zeroterm.env
 sudo nano /etc/zeroterm/zeroterm.env
 ```
 
+If you use a Waveshare 2.13 display, set:
+
+```
+ZEROTERM_EPAPER_LIB=/opt/zeroterm/third_party/e-Paper/RaspberryPi_JetsonNano/python/lib
+ZEROTERM_EPAPER_MODEL=epd2in13_V3
+```
+
 ## 8) Install and enable systemd service
 ```
 sudo cp /opt/zeroterm/systemd/zeroterm.service /etc/systemd/system/zeroterm.service
+sudo cp /opt/zeroterm/systemd/zeroterm-status.service /etc/systemd/system/zeroterm-status.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now zeroterm.service
+sudo systemctl enable --now zeroterm-status.service
 ```
 
 ## 9) Access from iPad
