@@ -10,6 +10,59 @@
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8");
 
+  const ANSI_COLORS = [
+    "#1d2127",
+    "#e06c75",
+    "#98c379",
+    "#e5c07b",
+    "#61afef",
+    "#c678dd",
+    "#56b6c2",
+    "#d7dae0",
+  ];
+  const ANSI_BRIGHT = [
+    "#5c6370",
+    "#ff7a85",
+    "#a8e59f",
+    "#f7d794",
+    "#82aaff",
+    "#d8a6ff",
+    "#7ee0d6",
+    "#ffffff",
+  ];
+  const DEFAULT_FG = "var(--term-fg)";
+  const DEFAULT_BG = "var(--term-bg)";
+
+  const escapeHtml = (text) =>
+    text.replace(/[&<>]/g, (char) => {
+      if (char === "&") {
+        return "&amp;";
+      }
+      if (char === "<") {
+        return "&lt;";
+      }
+      return "&gt;";
+    });
+
+  const colorFrom256 = (value) => {
+    if (value < 0 || value > 255 || Number.isNaN(value)) {
+      return null;
+    }
+    if (value < 16) {
+      return (ANSI_COLORS.concat(ANSI_BRIGHT))[value];
+    }
+    if (value >= 232) {
+      const shade = 8 + (value - 232) * 10;
+      return `rgb(${shade}, ${shade}, ${shade})`;
+    }
+    const index = value - 16;
+    const r = Math.floor(index / 36);
+    const g = Math.floor((index % 36) / 6);
+    const b = index % 6;
+    const map = [0, 95, 135, 175, 215, 255];
+    return `rgb(${map[r]}, ${map[g]}, ${map[b]})`;
+  };
+
   class TerminalEmulator {
     constructor(rows, cols) {
       this.rows = rows;
@@ -23,6 +76,10 @@
       this.savedCursor = { row: 0, col: 0 };
       this.mainCursor = { row: 0, col: 0 };
       this.altCursor = { row: 0, col: 0 };
+      this.fg = null;
+      this.bg = null;
+      this.bold = false;
+      this.inverse = false;
       this.state = "normal";
       this.csiBuffer = "";
       this.oscBuffer = "";
@@ -53,7 +110,7 @@
 
     renderText() {
       const screen = this._activeScreen();
-      return screen.map((line) => line.join("")).join("\n");
+      return screen.map((line) => this._renderLine(line)).join("\n");
     }
 
     _processChar(ch) {
@@ -225,6 +282,7 @@
           break;
         }
         case "m": {
+          this._handleSgr(parts);
           break;
         }
         case "s": {
@@ -278,7 +336,7 @@
         return;
       }
       const screen = this._activeScreen();
-      screen[this.cursorRow][this.cursorCol] = ch;
+      screen[this.cursorRow][this.cursorCol] = this._makeCell(ch);
       this.cursorCol += 1;
       if (this.cursorCol >= this.cols) {
         this.cursorCol = 0;
@@ -305,14 +363,15 @@
     _scrollUp() {
       const screen = this._activeScreen();
       screen.shift();
-      screen.push(this._blankLine(this.cols));
+      screen.push(this._blankLine(this.cols, this._currentAttrs()));
     }
 
     _eraseDisplay(mode) {
       const screen = this._activeScreen();
+      const attrs = this._currentAttrs();
       if (mode === 2) {
         for (let row = 0; row < this.rows; row += 1) {
-          screen[row] = this._blankLine(this.cols);
+          screen[row] = this._blankLine(this.cols, attrs);
         }
         return;
       }
@@ -321,34 +380,35 @@
           const start = row === this.cursorRow ? 0 : 0;
           const end = row === this.cursorRow ? this.cursorCol + 1 : this.cols;
           for (let col = start; col < end; col += 1) {
-            screen[row][col] = " ";
+            screen[row][col] = this._blankCell(attrs);
           }
         }
         return;
       }
       const row = this.cursorRow;
       for (let col = this.cursorCol; col < this.cols; col += 1) {
-        screen[row][col] = " ";
+        screen[row][col] = this._blankCell(attrs);
       }
       for (let r = row + 1; r < this.rows; r += 1) {
-        screen[r] = this._blankLine(this.cols);
+        screen[r] = this._blankLine(this.cols, attrs);
       }
     }
 
     _eraseLine(mode) {
       const screen = this._activeScreen();
+      const attrs = this._currentAttrs();
       if (mode === 2) {
-        screen[this.cursorRow] = this._blankLine(this.cols);
+        screen[this.cursorRow] = this._blankLine(this.cols, attrs);
         return;
       }
       if (mode === 1) {
         for (let col = 0; col <= this.cursorCol; col += 1) {
-          screen[this.cursorRow][col] = " ";
+          screen[this.cursorRow][col] = this._blankCell(attrs);
         }
         return;
       }
       for (let col = this.cursorCol; col < this.cols; col += 1) {
-        screen[this.cursorRow][col] = " ";
+        screen[this.cursorRow][col] = this._blankCell(attrs);
       }
     }
 
@@ -366,7 +426,7 @@
         if (row < screen.length) {
           const line = screen[row].slice(0, cols);
           while (line.length < cols) {
-            line.push(" ");
+            line.push(this._blankCell());
           }
           resized.push(line);
         } else {
@@ -376,12 +436,198 @@
       return resized;
     }
 
-    _blankLine(cols) {
-      return Array.from({ length: cols }, () => " ");
+    _blankLine(cols, attrs = null) {
+      return Array.from({ length: cols }, () => this._blankCell(attrs));
+    }
+
+    _blankCell(attrs = null) {
+      const fill = attrs || {
+        fg: null,
+        bg: null,
+        bold: false,
+        inverse: false,
+      };
+      return {
+        ch: " ",
+        fg: fill.fg,
+        bg: fill.bg,
+        bold: fill.bold,
+        inverse: fill.inverse,
+      };
+    }
+
+    _makeCell(ch) {
+      return {
+        ch,
+        fg: this.fg,
+        bg: this.bg,
+        bold: this.bold,
+        inverse: this.inverse,
+      };
+    }
+
+    _currentAttrs() {
+      return {
+        fg: this.fg,
+        bg: this.bg,
+        bold: this.bold,
+        inverse: this.inverse,
+      };
     }
 
     _activeScreen() {
       return this.useAlt ? this.altScreen : this.screen;
+    }
+
+    _handleSgr(parts) {
+      const codes = parts.length ? parts.map((value) => parseInt(value, 10)) : [0];
+      let i = 0;
+      while (i < codes.length) {
+        const code = Number.isNaN(codes[i]) ? 0 : codes[i];
+        if (code === 0) {
+          this.fg = null;
+          this.bg = null;
+          this.bold = false;
+          this.inverse = false;
+          i += 1;
+          continue;
+        }
+        if (code === 1) {
+          this.bold = true;
+          i += 1;
+          continue;
+        }
+        if (code === 22) {
+          this.bold = false;
+          i += 1;
+          continue;
+        }
+        if (code === 7) {
+          this.inverse = true;
+          i += 1;
+          continue;
+        }
+        if (code === 27) {
+          this.inverse = false;
+          i += 1;
+          continue;
+        }
+        if (code === 39) {
+          this.fg = null;
+          i += 1;
+          continue;
+        }
+        if (code === 49) {
+          this.bg = null;
+          i += 1;
+          continue;
+        }
+        if (code >= 30 && code <= 37) {
+          this.fg = ANSI_COLORS[code - 30];
+          i += 1;
+          continue;
+        }
+        if (code >= 90 && code <= 97) {
+          this.fg = ANSI_BRIGHT[code - 90];
+          i += 1;
+          continue;
+        }
+        if (code >= 40 && code <= 47) {
+          this.bg = ANSI_COLORS[code - 40];
+          i += 1;
+          continue;
+        }
+        if (code >= 100 && code <= 107) {
+          this.bg = ANSI_BRIGHT[code - 100];
+          i += 1;
+          continue;
+        }
+        if (code === 38 || code === 48) {
+          const isBg = code === 48;
+          const mode = codes[i + 1];
+          if (mode === 5 && typeof codes[i + 2] !== "undefined") {
+            const color = colorFrom256(codes[i + 2]);
+            if (color) {
+              if (isBg) {
+                this.bg = color;
+              } else {
+                this.fg = color;
+              }
+            }
+            i += 3;
+            continue;
+          }
+          if (
+            mode === 2 &&
+            typeof codes[i + 2] !== "undefined" &&
+            typeof codes[i + 3] !== "undefined" &&
+            typeof codes[i + 4] !== "undefined"
+          ) {
+            const r = Math.max(0, Math.min(255, codes[i + 2]));
+            const g = Math.max(0, Math.min(255, codes[i + 3]));
+            const b = Math.max(0, Math.min(255, codes[i + 4]));
+            const color = `rgb(${r}, ${g}, ${b})`;
+            if (isBg) {
+              this.bg = color;
+            } else {
+              this.fg = color;
+            }
+            i += 5;
+            continue;
+          }
+        }
+        i += 1;
+      }
+    }
+
+    _renderLine(line) {
+      let html = "";
+      let buffer = "";
+      let styleKey = null;
+      let styleCss = null;
+
+      const flush = () => {
+        if (!buffer) {
+          return;
+        }
+        const escaped = escapeHtml(buffer);
+        if (styleCss) {
+          html += `<span style="${styleCss}">${escaped}</span>`;
+        } else {
+          html += escaped;
+        }
+        buffer = "";
+      };
+
+      for (const cell of line) {
+        const style = this._styleForCell(cell);
+        if (style.key !== styleKey) {
+          flush();
+          styleKey = style.key;
+          styleCss = style.css;
+        }
+        buffer += cell.ch;
+      }
+
+      flush();
+      return html;
+    }
+
+    _styleForCell(cell) {
+      let fg = cell.fg || DEFAULT_FG;
+      let bg = cell.bg || DEFAULT_BG;
+      if (cell.inverse) {
+        const temp = fg;
+        fg = bg;
+        bg = temp;
+      }
+      const bold = cell.bold;
+      const isDefault = fg === DEFAULT_FG && bg === DEFAULT_BG && !bold;
+      if (isDefault) {
+        return { key: "default", css: null };
+      }
+      const css = `color:${fg};background-color:${bg};${bold ? "font-weight:600;" : ""}`;
+      return { key: `${fg}|${bg}|${bold ? 1 : 0}`, css };
     }
   }
 
@@ -422,7 +668,7 @@
     }
 
     _render() {
-      this.textEl.textContent = this.emulator.renderText();
+      this.textEl.innerHTML = this.emulator.renderText();
       this._updateCursor();
     }
 
