@@ -1,13 +1,10 @@
 # ZeroTerm
 
-ZeroTerm is a **fully headless, ultra-lightweight Kali Linux terminal system**
-designed specifically for the **Raspberry Pi Zero 2 W**.
+ZeroTerm is a fully headless, ultra-lightweight Kali Linux terminal system
+for Raspberry Pi Zero 2 W. It exposes a real PTY over the web so an iPad
+(Safari) acts as the keyboard and screen.
 
-It provides **direct, unrestricted TTY access** to native Kali Linux
-command-line tools and standard Linux commands through a **minimal web interface**,
-operated entirely from an **iPad (Safari)**.
-
-No display, keyboard, desktop environment, or heavy frameworks are used.
+No display, keyboard, desktop environment, or heavy framework is used.
 
 ---
 
@@ -18,200 +15,154 @@ graphical interfaces, large frameworks, and powerful hardware.
 
 ZeroTerm was created with a different philosophy:
 
-- Treat Kali Linux as a **service OS**, not a desktop OS
-- Eliminate all unnecessary layers (GUI, window managers, VNC, etc.)
-- Use the web **only as a transport layer**, not as an application platform
+- Treat Kali Linux as a service OS, not a desktop OS
+- Eliminate unnecessary layers (GUI, window managers, VNC)
+- Use the web only as a transport layer, not an application platform
 - Make a portable, battery-powered Linux security node
-- Operate everything through **real CUI**, not abstractions
+- Operate through a real CUI, not abstractions
 
-The result is a system that behaves like a **true Linux terminal on the network**.
+The result is a system that behaves like a true Linux terminal on the network.
 
 ---
 
 ## Core Concept
 
-> **“The web interface is used as a terminal cable.”**
+"The web interface is a terminal cable."
 
-ZeroTerm does **not**:
-- Convert CUI tools into web applications
+ZeroTerm does not:
+- Convert CUI tools into web apps
 - Wrap commands in JSON or REST APIs
 - Restrict available Linux commands
 - Provide a sandboxed or limited shell
 
 Instead:
-
-- Tools run on a **real PTY**
-- Input/output is forwarded over the web
+- Tools run on a real PTY
+- Input/output is forwarded as raw bytes
 - The experience is equivalent to SSH, but browser-based
-- CUI tools remain completely unmodified
+- CUI tools remain unmodified
 
 ---
 
 ## Design Goals
 
-- Fully headless operation  
-  (no HDMI, no keyboard, no mouse)
-
+- Fully headless operation (no HDMI, keyboard, mouse)
 - 100% CUI-based Kali Linux environment
-
-- Web-based terminal access  
-  (Safari-compatible, no apps required)
-
-- Extremely lightweight  
-  (designed for Raspberry Pi Zero 2 W constraints)
-
+- Web-based terminal access (Safari-compatible, no apps)
+- Extremely lightweight for Pi Zero 2 W constraints
 - Portable and battery-powered
-
-- Explicit separation of roles:
-  - Web = transport
-  - Linux = execution
-  - CUI = interface
+- Clear separation of roles: Web = transport, Linux = execution, CUI = interface
 
 ---
 
 ## What ZeroTerm Is
 
-- A **real Linux TTY over the web**
+- A real Linux TTY over the web
 - A headless Kali Linux node
 - A platform for security research and experimentation
-- A system where **standard Linux commands work normally**
+- A system where standard Linux commands work normally
 
 Examples of supported usage:
-- `apt install`, `apt build-dep`
+- apt install, apt build-dep
 - Kernel module and driver builds
-- `ip`, `iw`, `rfkill`, `lsusb`
-- Compilation with `make`
-- Native Kali CUI tools (e.g. wifite, aircrack-ng, etc.)
+- ip, iw, rfkill, lsusb
+- Compilation with make
+- Native Kali CUI tools (wifite, aircrack-ng, etc.)
 
-There is **no artificial restriction layer**.
+There is no artificial restriction layer.
 
 ---
 
-## What ZeroTerm Is NOT
+## What ZeroTerm Is Not
 
-- Not a GUI
-- Not a web-based command launcher
-- Not a restricted shell
-- Not a desktop replacement
-- Not a REST/JSON API service
-- Not a browser-based IDE
-
-If you want a graphical desktop or rich UI, this project is not for you.
+- A GUI or desktop replacement
+- A web-based command launcher
+- A restricted shell
+- A REST/JSON API service
+- A browser-based IDE
 
 ---
 
 ## Hardware Target
 
-ZeroTerm is designed around the following **fixed hardware assumptions**:
+- Raspberry Pi Zero 2 W (WH is fine)
+- Kali Linux (Lite)
+- External USB Wi-Fi adapter for monitoring/experimentation
+- Built-in Wi-Fi for management and web access
+- PiSugar2 battery module
+- 2.13-inch ePaper display for status only
 
-- **Raspberry Pi Zero 2 WH**
-- **Kali Linux (Lite)**
-- **External USB Wi-Fi adapter**  
-  (used for monitoring / research / experimentation)
-- **Built-in Wi-Fi**  
-  (used exclusively for management and web access)
-- **PiSugar2 battery module**
-- **2.13" ePaper display** for persistent status information
-
-The hardware limitations are not a drawback — they are part of the design.
+The hardware limits are part of the design.
 
 ---
 
 ## Operating Model
 
-- The device boots directly into a **service-based state**
-- No interactive login is required
-- Core components run as `systemd` services
-- The system is always reachable over the web once powered
-
-The iPad acts as:
-- Keyboard
-- Monitor
-- Control console
-
-The Raspberry Pi acts as:
-- Execution node
-- Network interface
-- Power-efficient compute unit
+- Boots directly into a service-based state
+- No interactive login required
+- Core components run as systemd services
+- Always reachable over the web once powered
 
 ---
 
-## ePaper Usage Philosophy
+## ePaper Philosophy
 
-The ePaper display is **not** a terminal.
-
-It is intentionally limited to:
+The ePaper display is not a terminal. It shows:
 - System state (READY / RUNNING)
 - IP address for web access
 - Battery level
 - Wi-Fi status
 
-It does **not**:
-- Display logs
-- Scroll text
-- Mirror the TTY output
-
-This preserves battery life and aligns with the
-“headless-first” design philosophy.
+It does not show logs or TTY output.
 
 ---
 
-## Software Stack Overview
+## Software Stack (High Level)
 
-- Kali Linux (Lite)
-- No X / Wayland / Desktop Environment
-- No GUI libraries
-- No frontend frameworks
+- Kali Linux Lite
+- No X / Wayland / desktop environment
 - Minimal HTML + JavaScript
-- PTY-based terminal backend
-- WebSocket or equivalent bidirectional transport
+- PTY backend with WebSocket transport
 - systemd-managed services
 
-Every layer is intentionally minimal.
-
 ---
 
-## Security & Usage Notice
+## Security & Usage
 
-This project is intended for:
-- Educational purposes
-- Security research
-- Controlled experimentation
-
-Users are responsible for complying with:
-- Local laws
-- Network policies
-- Ethical guidelines
-
-ZeroTerm provides a **terminal**, not intent.
-
----
-
-## Why ZeroTerm Exists
-
-Because sometimes you don’t want:
-- A laptop
-- A screen
-- A heavy OS
-- A complicated UI
-
-You just want:
-- A real Linux shell
-- On small hardware
-- Accessible anywhere
-- Without compromises
+ZeroTerm provides a terminal, not intent. Use it for education and research,
+and follow local laws and network policies. See docs/SECURITY.md.
 
 ---
 
 ## Project Status
 
-This repository represents the **foundation and architecture**
-of ZeroTerm.
-
-Implementation is intentionally incremental, focusing first on:
+This repository represents the foundation and architecture of ZeroTerm.
+Implementation is intentionally incremental, focusing on:
 - Correctness
 - Simplicity
 - Transparency
+
+---
+
+## Implementation (Baseline)
+
+This repository includes a minimal, framework-free baseline:
+
+- Python 3 standard library PTY-over-WebSocket service
+- Minimal HTML/CSS/JS terminal client
+- systemd units for terminal + e-Paper status
+- Environment-based configuration
+
+---
+
+## Documentation
+
+- docs/ARCHITECTURE.md
+- docs/SETUP_PI_ZERO.md
+- docs/SECURITY.md
+- docs/EPAPER.md
+- docs/CONFIGURATION.md
+- docs/PROTOCOL.md
+- docs/CLIENT.md
 
 ---
 
@@ -223,6 +174,6 @@ MIT License
 
 ## One-Line Summary
 
-**ZeroTerm turns a Raspberry Pi Zero 2 W into a fully headless Kali Linux node,
-controlled entirely via a real web-based TTY from an iPad — nothing more,
-nothing less.**
+ZeroTerm turns a Raspberry Pi Zero 2 W into a fully headless Kali Linux node,
+controlled entirely via a real web-based TTY from an iPad - nothing more,
+nothing less.
