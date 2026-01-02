@@ -9,8 +9,17 @@
   <body>
     <main class="terminal-shell">
       <header class="terminal-bar">
-        <div class="brand">ZeroTerm</div>
-        <div class="status" id="status">DISCONNECTED</div>
+        <div class="brand">
+          <div class="brand-mark">ZT</div>
+          <div class="brand-text">
+            <div class="brand-title">ZeroTerm</div>
+            <div class="brand-subtitle">Headless Kali TTY over Web</div>
+          </div>
+        </div>
+        <div class="status-wrap">
+          <div class="status-label">LINK</div>
+          <div class="status-pill" id="status">DISCONNECTED</div>
+        </div>
       </header>
       <section class="terminal-screen" id="terminal" tabindex="0" aria-label="ZeroTerm terminal">
         <pre class="terminal-text" id="terminal-text"></pre>
@@ -24,17 +33,19 @@
           spellcheck="false"
         ></textarea>
       </section>
-      <footer class="terminal-hint" id="hint">Tap to focus - Paste to send input</footer>
-      <div class="terminal-keys" id="terminal-keys" aria-label="Terminal shortcuts">
-        <button type="button" data-key="esc">ESC</button>
-        <button type="button" data-key="tab">TAB</button>
-        <button type="button" data-key="ctrl-c">CTRL+C</button>
-        <button type="button" data-key="ctrl-d">CTRL+D</button>
-        <button type="button" data-key="up">UP</button>
-        <button type="button" data-key="down">DOWN</button>
-        <button type="button" data-key="left">LEFT</button>
-        <button type="button" data-key="right">RIGHT</button>
-      </div>
+      <footer class="terminal-footer">
+        <div class="terminal-hint" id="hint">Tap to focus - Paste to send input</div>
+        <div class="terminal-keys" id="terminal-keys" aria-label="Terminal shortcuts">
+          <button type="button" data-key="esc">ESC</button>
+          <button type="button" data-key="tab">TAB</button>
+          <button type="button" data-key="ctrl-c">CTRL+C</button>
+          <button type="button" data-key="ctrl-d">CTRL+D</button>
+          <button type="button" data-key="up">UP</button>
+          <button type="button" data-key="down">DOWN</button>
+          <button type="button" data-key="left">LEFT</button>
+          <button type="button" data-key="right">RIGHT</button>
+        </div>
+      </footer>
     </main>
     <script src="/zeroterm.js"></script>
   </body>
