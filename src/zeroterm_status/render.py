@@ -103,15 +103,51 @@ def _draw_battery_bar(draw, box, percent: int | None) -> None:
 def _draw_card(draw, box, label: str, value: str, font_label, font_value) -> None:
     x0, y0, x1, y1 = box
     draw.rectangle((x0, y0, x1, y1), outline=0)
+    box_height = max(1, y1 - y0)
+    label_height = _text_height(font_label)
+    header_height = min(label_height + 4, max(8, box_height - 6))
+    header_bottom = y0 + header_height
+    draw.rectangle((x0 + 1, y0 + 1, x1 - 1, header_bottom), fill=0)
+
     label_text = _fit_text(draw, label, font_label, x1 - x0 - 6)
+    draw.text((x0 + 3, y0 + 2), label_text, font=font_label, fill=255)
+
+    value_area_top = header_bottom + 2
+    value_area_bottom = y1 - 2
+    if value_area_bottom <= value_area_top:
+        return
     value_text = _fit_text(draw, value, font_value, x1 - x0 - 6)
-    label_y = y0 + 2
-    draw.text((x0 + 3, label_y), label_text, font=font_label, fill=0)
-    separator_y = label_y + _text_height(font_label) + 1
-    value_y = y1 - _text_height(font_value) - 2
-    if separator_y + 1 < value_y:
-        draw.line((x0 + 3, separator_y, x1 - 3, separator_y), fill=0)
+    value_y = value_area_bottom - _text_height(font_value)
+    if value_y < value_area_top:
+        value_y = value_area_top
     draw.text((x0 + 3, value_y), value_text, font=font_value, fill=0)
+
+
+def _split_wifi_text(text: str) -> tuple[str | None, str | None]:
+    text = (text or "").strip()
+    if not text:
+        return None, None
+    parts = text.split()
+    state = parts[0].upper()
+    ssid = " ".join(parts[1:]).strip() if len(parts) > 1 else None
+    if ssid == "":
+        ssid = None
+    return state, ssid
+
+
+def _short_wifi_state(state: str | None) -> str:
+    if not state:
+        return "UNK"
+    state = state.upper()
+    mapping = {
+        "UP": "UP",
+        "DOWN": "DN",
+        "UNKNOWN": "UNK",
+        "MISSING": "MISS",
+        "DORMANT": "DORM",
+        "LOWERLAYERDOWN": "LLDN",
+    }
+    return mapping.get(state, state[:4])
 
 
 def render_lines(lines: Iterable[str], config: RenderConfig):
@@ -246,10 +282,14 @@ def render_status(
     cell_width = max(1, (right_width - gap_x) // cols)
     cell_height = max(1, (grid_height - gap_y * (rows - 1)) // rows)
 
+    wifi_state, wifi_ssid = _split_wifi_text(wifi)
+    wifi_label = f"WIFI {_short_wifi_state(wifi_state)}"
+    wifi_value = wifi_ssid or "--"
+
     cards = [
         ("IP", ip),
         ("BAT", battery),
-        ("WIFI", wifi),
+        (wifi_label, wifi_value),
         ("TMP", temp),
         ("UP", uptime),
         ("LOAD", load),

@@ -1013,12 +1013,18 @@
         text-transform: uppercase;
         letter-spacing: 0.08em;
         font-size: 9px;
+        background: #111;
+        color: #f4f3e8;
+        padding: 2px 4px;
+        margin: -4px -4px 4px;
+        display: block;
       }
       .epaper-debug__value {
         font-size: 11px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        margin-top: auto;
       }
       .epaper-debug__hint {
         padding: 2px 8px 6px;
@@ -1070,7 +1076,7 @@
             <div class="epaper-debug__value" data-line="bat"></div>
           </div>
           <div class="epaper-debug__card">
-            <div class="epaper-debug__label">WIFI</div>
+            <div class="epaper-debug__label" data-label="wifi">WIFI</div>
             <div class="epaper-debug__value" data-line="wifi"></div>
           </div>
           <div class="epaper-debug__card">
@@ -1094,6 +1100,7 @@
     const statusEl = panel.querySelector(".epaper-debug__status");
     const faceEl = panel.querySelector(".epaper-debug__face");
     const ipEl = panel.querySelector('[data-line="ip"]');
+    const wifiLabelEl = panel.querySelector('[data-label="wifi"]');
     const wifiEl = panel.querySelector('[data-line="wifi"]');
     const batEl = panel.querySelector('[data-line="bat"]');
     const batPercentEl = panel.querySelector('[data-line="bat-percent"]');
@@ -1118,10 +1125,12 @@
       const upMinutes = Math.floor(Math.random() * 59);
       const face = status === "RUNNING" ? "(o_o)" : "(-_-)";
       const faceText = battery <= 20 ? "(;_;)" : face;
+      const wifiShort = wifiState === "DOWN" ? "DN" : wifiState;
       statusEl.textContent = status;
       faceEl.textContent = faceText;
+      wifiLabelEl.textContent = `WIFI ${wifiShort}`;
       ipEl.textContent = ip;
-      wifiEl.textContent = `${wifiState} ${ssid}`;
+      wifiEl.textContent = ssid;
       batEl.textContent = `${battery}%`;
       batPercentEl.textContent = `${battery}%`;
       batFillEl.style.width = `${battery}%`;
