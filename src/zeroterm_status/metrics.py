@@ -36,6 +36,11 @@ class SystemInfo:
     uptime: str | None
     load: str | None
     temp: str | None
+    mem_percent: int | None
+    cpu_percent: int | None
+
+
+_CPU_SAMPLE: tuple[int, int] | None = None
 
 
 def _run_command(args: list[str]) -> str | None:
@@ -227,9 +232,83 @@ def read_temperature() -> str | None:
     return None
 
 
+def read_memory_percent() -> int | None:
+    text = _read_file_text(Path("/proc/meminfo"))
+    if not text:
+        return None
+    total = None
+    available = None
+    free = None
+    buffers = None
+    cached = None
+    for line in text.splitlines():
+        if line.startswith("MemTotal:"):
+            total = _parse_kib(line)
+        elif line.startswith("MemAvailable:"):
+            available = _parse_kib(line)
+        elif line.startswith("MemFree:"):
+            free = _parse_kib(line)
+        elif line.startswith("Buffers:"):
+            buffers = _parse_kib(line)
+        elif line.startswith("Cached:"):
+            cached = _parse_kib(line)
+    if total is None or total <= 0:
+        return None
+    if available is None:
+        if free is None:
+            return None
+        buffers = buffers or 0
+        cached = cached or 0
+        available = free + buffers + cached
+    used = max(0, total - available)
+    percent = int(round(used * 100 / total))
+    return max(0, min(100, percent))
+
+
+def _parse_kib(line: str) -> int | None:
+    match = re.search(r"(\d+)", line)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def read_cpu_percent() -> int | None:
+    global _CPU_SAMPLE
+    text = _read_file_text(Path("/proc/stat"))
+    if not text:
+        return None
+    line = text.splitlines()[0] if text else ""
+    parts = line.split()
+    if len(parts) < 5 or parts[0] != "cpu":
+        return None
+    try:
+        values = [int(value) for value in parts[1:]]
+    except ValueError:
+        return None
+    total = sum(values)
+    idle = values[3] + (values[4] if len(values) > 4 else 0)
+    if total <= 0:
+        return None
+    if _CPU_SAMPLE is None:
+        _CPU_SAMPLE = (total, idle)
+        return None
+    delta_total = total - _CPU_SAMPLE[0]
+    delta_idle = idle - _CPU_SAMPLE[1]
+    _CPU_SAMPLE = (total, idle)
+    if delta_total <= 0:
+        return None
+    usage = int(round((delta_total - delta_idle) * 100 / delta_total))
+    return max(0, min(100, usage))
+
+
 def read_system() -> SystemInfo:
     return SystemInfo(
         uptime=read_uptime(),
         load=read_load(),
         temp=read_temperature(),
+        mem_percent=read_memory_percent(),
+        cpu_percent=read_cpu_percent(),
     )

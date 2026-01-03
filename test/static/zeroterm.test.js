@@ -935,30 +935,40 @@
         flex-direction: column;
         z-index: 999;
       }
-      .epaper-debug__header {
+      .epaper-debug__top {
         background: #111;
         color: #f4f3e8;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 4px 6px;
-        font-size: 10px;
-        letter-spacing: 0.18em;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        font-size: 9px;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
+      }
+      .epaper-debug__top span {
+        padding: 2px 4px;
+        border-left: 1px solid #f4f3e8;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .epaper-debug__top span:first-child {
+        border-left: none;
       }
       .epaper-debug__body {
         flex: 1;
-        padding: 6px;
+        padding: 4px 6px;
         display: grid;
         grid-template-columns: 92px 1fr;
         gap: 6px;
       }
-      .epaper-debug__panel {
+      .epaper-debug__left,
+      .epaper-debug__right {
         border: 1px solid #111;
-        padding: 6px;
+        padding: 4px;
         display: flex;
         flex-direction: column;
-        gap: 6px;
+        gap: 4px;
       }
       .epaper-debug__face-wrap {
         flex: 1;
@@ -975,7 +985,7 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
-        font-size: 10px;
+        font-size: 9px;
       }
       .epaper-debug__battery-row {
         display: flex;
@@ -995,43 +1005,39 @@
         width: 0%;
         background: #111;
       }
-      .epaper-debug__right {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 6px;
-      }
-      .epaper-debug__card {
-        border: 1px solid #111;
-        padding: 4px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
+      .epaper-debug__message {
         font-size: 10px;
-        line-height: 1.1;
-      }
-      .epaper-debug__label {
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        font-size: 9px;
-        background: #111;
-        color: #f4f3e8;
-        padding: 2px 4px;
-        margin: -4px -4px 4px;
-        display: block;
       }
-      .epaper-debug__value {
-        font-size: 11px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      .epaper-debug__message-sub {
+        font-size: 8px;
+        letter-spacing: 0.1em;
+        margin-top: 2px;
+      }
+      .epaper-debug__metrics {
         margin-top: auto;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 4px;
+        text-align: center;
       }
-      .epaper-debug__hint {
-        padding: 2px 8px 6px;
-        font-size: 9px;
-        letter-spacing: 0.14em;
+      .epaper-debug__metric-label {
+        font-size: 8px;
+        letter-spacing: 0.12em;
         text-transform: uppercase;
-        opacity: 0.6;
+      }
+      .epaper-debug__metric-value {
+        font-size: 10px;
+      }
+      .epaper-debug__bottom {
+        border-top: 1px solid #111;
+        padding: 2px 6px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 9px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
       @media (max-width: 720px) {
         .epaper-debug {
@@ -1047,12 +1053,14 @@
     const panel = document.createElement("div");
     panel.className = "epaper-debug";
     panel.innerHTML = `
-      <div class="epaper-debug__header">
-        <span>ZEROTERM</span>
-        <span class="epaper-debug__status"></span>
+      <div class="epaper-debug__top">
+        <span data-top="ip"></span>
+        <span data-top="wifi"></span>
+        <span data-top="bat"></span>
+        <span data-top="up"></span>
       </div>
       <div class="epaper-debug__body">
-        <div class="epaper-debug__panel">
+        <div class="epaper-debug__left">
           <div class="epaper-debug__face-wrap">
             <div class="epaper-debug__face"></div>
           </div>
@@ -1067,47 +1075,47 @@
           </div>
         </div>
         <div class="epaper-debug__right">
-          <div class="epaper-debug__card">
-            <div class="epaper-debug__label">IP</div>
-            <div class="epaper-debug__value" data-line="ip"></div>
+          <div class="epaper-debug__message">
+            <div data-line="msg-main"></div>
+            <div class="epaper-debug__message-sub" data-line="msg-sub"></div>
           </div>
-          <div class="epaper-debug__card">
-            <div class="epaper-debug__label">BAT</div>
-            <div class="epaper-debug__value" data-line="bat"></div>
-          </div>
-          <div class="epaper-debug__card">
-            <div class="epaper-debug__label" data-label="wifi">WIFI</div>
-            <div class="epaper-debug__value" data-line="wifi"></div>
-          </div>
-          <div class="epaper-debug__card">
-            <div class="epaper-debug__label">TMP</div>
-            <div class="epaper-debug__value" data-line="temp"></div>
-          </div>
-          <div class="epaper-debug__card">
-            <div class="epaper-debug__label">UP</div>
-            <div class="epaper-debug__value" data-line="up"></div>
-          </div>
-          <div class="epaper-debug__card">
-            <div class="epaper-debug__label">LOAD</div>
-            <div class="epaper-debug__value" data-line="load"></div>
+          <div class="epaper-debug__metrics">
+            <div>
+              <div class="epaper-debug__metric-label">MEM</div>
+              <div class="epaper-debug__metric-value" data-line="mem"></div>
+            </div>
+            <div>
+              <div class="epaper-debug__metric-label">CPU</div>
+              <div class="epaper-debug__metric-value" data-line="cpu"></div>
+            </div>
+            <div>
+              <div class="epaper-debug__metric-label">TMP</div>
+              <div class="epaper-debug__metric-value" data-line="temp"></div>
+            </div>
           </div>
         </div>
       </div>
-      <div class="epaper-debug__hint">debug only</div>
+      <div class="epaper-debug__bottom">
+        <span data-line="footer-left"></span>
+        <span data-line="footer-right"></span>
+      </div>
     `;
     document.body.appendChild(panel);
 
-    const statusEl = panel.querySelector(".epaper-debug__status");
+    const topIpEl = panel.querySelector('[data-top="ip"]');
+    const topWifiEl = panel.querySelector('[data-top="wifi"]');
+    const topBatEl = panel.querySelector('[data-top="bat"]');
+    const topUpEl = panel.querySelector('[data-top="up"]');
     const faceEl = panel.querySelector(".epaper-debug__face");
-    const ipEl = panel.querySelector('[data-line="ip"]');
-    const wifiLabelEl = panel.querySelector('[data-label="wifi"]');
-    const wifiEl = panel.querySelector('[data-line="wifi"]');
-    const batEl = panel.querySelector('[data-line="bat"]');
+    const msgMainEl = panel.querySelector('[data-line="msg-main"]');
+    const msgSubEl = panel.querySelector('[data-line="msg-sub"]');
     const batPercentEl = panel.querySelector('[data-line="bat-percent"]');
     const batFillEl = panel.querySelector(".epaper-debug__battery-fill");
+    const memEl = panel.querySelector('[data-line="mem"]');
+    const cpuEl = panel.querySelector('[data-line="cpu"]');
     const tempEl = panel.querySelector('[data-line="temp"]');
-    const upEl = panel.querySelector('[data-line="up"]');
-    const loadEl = panel.querySelector('[data-line="load"]');
+    const footerLeftEl = panel.querySelector('[data-line="footer-left"]');
+    const footerRightEl = panel.querySelector('[data-line="footer-right"]');
     const ssids = ["ZEROTERM-LAB", "FIELD-NODE", "KALI-NET"];
 
     const render = () => {
@@ -1121,22 +1129,29 @@
       const battery = Math.floor(40 + Math.random() * 55);
       const load = (Math.random() * 0.9 + 0.1).toFixed(2);
       const temp = Math.floor(36 + Math.random() * 10);
+      const mem = Math.floor(30 + Math.random() * 50);
+      const cpu = Math.floor(5 + Math.random() * 60);
       const upHours = Math.floor(1 + Math.random() * 9);
       const upMinutes = Math.floor(Math.random() * 59);
       const face = status === "RUNNING" ? "(o_o)" : "(-_-)";
       const faceText = battery <= 20 ? "(;_;)" : face;
       const wifiShort = wifiState === "DOWN" ? "DN" : wifiState;
-      statusEl.textContent = status;
+      const upText = `${upHours}:${String(upMinutes).padStart(2, "0")}`;
+
+      topIpEl.textContent = `IP ${ip}`;
+      topWifiEl.textContent = `WIFI ${wifiShort}`;
+      topBatEl.textContent = `BAT ${battery}%`;
+      topUpEl.textContent = `UP ${upText}`;
       faceEl.textContent = faceText;
-      wifiLabelEl.textContent = `WIFI ${wifiShort}`;
-      ipEl.textContent = ip;
-      wifiEl.textContent = ssid;
-      batEl.textContent = `${battery}%`;
+      msgMainEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
+      msgSubEl.textContent = `STATE ${status}`;
       batPercentEl.textContent = `${battery}%`;
       batFillEl.style.width = `${battery}%`;
+      memEl.textContent = `${mem}%`;
+      cpuEl.textContent = `${cpu}%`;
       tempEl.textContent = `${temp}C`;
-      loadEl.textContent = load;
-      upEl.textContent = `${upHours}h${upMinutes}m`;
+      footerLeftEl.textContent = `WIFI ${ssid}`;
+      footerRightEl.textContent = `LOAD ${load}`;
     };
 
     render();

@@ -93,6 +93,8 @@ def main() -> None:
             temp_text = system.temp or "--"
             load_text = system.load or "--"
             uptime_text = system.uptime or "--"
+            mem_text = f"{system.mem_percent}%" if system.mem_percent is not None else "--"
+            cpu_text = f"{system.cpu_percent}%" if system.cpu_percent is not None else "--"
             payload = "\n".join(
                 [
                     status,
@@ -102,6 +104,8 @@ def main() -> None:
                     temp_text,
                     load_text,
                     uptime_text,
+                    mem_text,
+                    cpu_text,
                 ]
             )
             if payload != last_payload and not render_failed:
@@ -114,6 +118,8 @@ def main() -> None:
                         temp=temp_text,
                         load=load_text,
                         uptime=uptime_text,
+                        mem=mem_text,
+                        cpu=cpu_text,
                         battery_percent=battery.percent,
                         updated=None,
                         config=render_config,

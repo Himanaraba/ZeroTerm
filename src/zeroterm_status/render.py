@@ -150,6 +150,29 @@ def _short_wifi_state(state: str | None) -> str:
     return mapping.get(state, state[:4])
 
 
+def _battery_short(percent: int | None, battery_text: str) -> str:
+    if percent is None:
+        return "--"
+    suffix = ""
+    text = (battery_text or "").upper()
+    if "CHARG" in text:
+        suffix = "C"
+    elif "FULL" in text:
+        suffix = "F"
+    return f"{percent}%{suffix}"
+
+
+def _status_message(status_text: str) -> str:
+    status = status_text.strip().upper()
+    if status == "RUNNING":
+        return "SESSION LIVE"
+    if status in {"DOWN", "FAILED"}:
+        return "SERVICE DOWN"
+    if status == "READY":
+        return "WAITING FOR INPUT"
+    return "STATUS UNKNOWN"
+
+
 def render_lines(lines: Iterable[str], config: RenderConfig):
     if Image is None or ImageDraw is None or ImageFont is None:
         raise RuntimeError("Pillow is required for e-paper rendering.")
@@ -188,6 +211,8 @@ def render_status(
     temp: str,
     load: str,
     uptime: str,
+    mem: str,
+    cpu: str,
     battery_percent: int | None,
     updated: str | None,
     config: RenderConfig,
@@ -197,39 +222,77 @@ def render_status(
 
     image = Image.new("1", (config.width, config.height), 255)
     draw = ImageDraw.Draw(image)
-    font_body = _load_font(config.font_path, max(10, config.font_size))
-    font_header = _load_font(config.font_path, max(12, config.font_size + 2))
-    font_face = _load_font(config.font_path, max(16, config.font_size + 8))
-    font_small = _load_font(config.font_path, max(9, config.font_size - 2))
-    if font_body is None or font_header is None or font_face is None or font_small is None:
+    font_header = _load_font(config.font_path, max(9, config.font_size - 4))
+    font_body = _load_font(config.font_path, max(10, config.font_size - 2))
+    font_small = _load_font(config.font_path, max(8, config.font_size - 6))
+    font_face = _load_font(config.font_path, max(18, config.font_size + 4))
+    if (
+        font_body is None
+        or font_header is None
+        or font_face is None
+        or font_small is None
+    ):
         raise RuntimeError("Pillow font unavailable.")
 
     margin = config.margin
-    header_height = min(config.height, max(18, _text_height(font_header) + 6))
+    header_height = min(config.height, max(14, _text_height(font_header) + 4))
+    footer_height = min(config.height, max(12, _text_height(font_header) + 3))
 
-    draw.rectangle((0, 0, config.width, header_height), fill=0)
     draw.rectangle((0, 0, config.width - 1, config.height - 1), outline=0)
-
-    header_y = max(0, (header_height - _text_height(font_header)) // 2)
-    draw.text((margin, header_y), "ZEROTERM", font=font_header, fill=255)
+    draw.rectangle((0, 0, config.width - 1, header_height), fill=0)
 
     status_text = status.strip().upper() or "READY"
-    status_width = _text_width(draw, status_text, font_header)
+    wifi_state, wifi_ssid = _split_wifi_text(wifi)
+    wifi_short = _short_wifi_state(wifi_state)
+    uptime_text = uptime or "--"
+    battery_short = _battery_short(battery_percent, battery)
+
+    segments = [
+        f"IP {ip}",
+        f"WIFI {wifi_short}",
+        f"BAT {battery_short}",
+        f"UP {uptime_text}",
+    ]
+    segment_count = len(segments)
+    usable_width = config.width - 2
+    segment_width = max(1, usable_width // segment_count)
+    for index, segment in enumerate(segments):
+        x0 = 1 + index * segment_width
+        x1 = (
+            1 + (index + 1) * segment_width
+            if index < segment_count - 1
+            else config.width - 1
+        )
+        if index > 0:
+            draw.line((x0, 0, x0, header_height), fill=255)
+        text = _fit_text(draw, segment, font_header, x1 - x0 - 4)
+        _center_text(draw, text, font_header, (x0 + 1, 0, x1 - 1, header_height), fill=255)
+
+    footer_top = config.height - footer_height
+    draw.rectangle((0, footer_top, config.width - 1, config.height - 1), fill=255)
+    draw.line((0, footer_top, config.width - 1, footer_top), fill=0)
+
+    footer_left = f"WIFI {wifi_ssid or _short_wifi_state(wifi_state)}"
+    footer_right = f"LOAD {load or '--'}"
+    footer_left_text = _fit_text(draw, footer_left, font_header, config.width - margin * 2)
+    draw.text((margin, footer_top + 2), footer_left_text, font=font_header, fill=0)
+    footer_right_text = _fit_text(draw, footer_right, font_header, config.width - margin * 2)
+    right_width = _text_width(draw, footer_right_text, font_header)
     draw.text(
-        (config.width - margin - status_width, header_y),
-        status_text,
+        (config.width - margin - right_width, footer_top + 2),
+        footer_right_text,
         font=font_header,
-        fill=255,
+        fill=0,
     )
 
-    body_top = header_height + 3
-    body_bottom = config.height - margin
+    body_top = header_height + 2
+    body_bottom = footer_top - 2
     content_width = config.width - margin * 2
     gap = 6
-    left_width = min(96, max(72, int(content_width * 0.36)))
-    if content_width - left_width - gap < 110:
-        left_width = max(60, content_width - gap - 110)
+    left_width = min(92, max(70, int(content_width * 0.38)))
     right_width = max(60, content_width - left_width - gap)
+    if left_width + gap + right_width > content_width:
+        right_width = max(60, content_width - left_width - gap)
 
     left_x0 = margin
     left_x1 = left_x0 + left_width
@@ -239,7 +302,6 @@ def render_status(
     draw.rectangle((left_x0, body_top, left_x1, body_bottom), outline=0)
     draw.rectangle((right_x0, body_top, right_x1, body_bottom), outline=0)
 
-    face_text = _pick_face(status_text, battery_percent)
     label_height = _text_height(font_small)
     bar_height = max(6, label_height // 2 + 2)
     battery_block = label_height + bar_height + 6
@@ -257,6 +319,7 @@ def render_status(
         face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2) + face_size,
         face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2) + face_size,
     )
+    face_text = _pick_face(status_text, battery_percent)
     if face_box[2] > face_box[0] and face_box[3] > face_box[1]:
         draw.ellipse(face_box, outline=0)
         _center_text(draw, face_text, font_face, face_box, fill=0)
@@ -272,46 +335,44 @@ def render_status(
     bar_box = (left_x0 + 4, bar_y, left_x1 - 6, bar_y + bar_height)
     _draw_battery_bar(draw, bar_box, battery_percent)
 
-    grid_top = body_top + 2
-    grid_bottom = body_bottom - 2
-    grid_height = max(1, grid_bottom - grid_top)
-    cols = 2
-    rows = 3
-    gap_x = 6
-    gap_y = 4
-    cell_width = max(1, (right_width - gap_x) // cols)
-    cell_height = max(1, (grid_height - gap_y * (rows - 1)) // rows)
+    message_primary = _status_message(status_text)
+    message_secondary = f"STATE {status_text}"
+    message_x = right_x0 + 4
+    message_y = body_top + 4
+    message_primary = _fit_text(draw, message_primary, font_body, right_width - 8)
+    draw.text((message_x, message_y), message_primary, font=font_body, fill=0)
+    message_y += _text_height(font_body) + 2
+    message_secondary = _fit_text(draw, message_secondary, font_small, right_width - 8)
+    draw.text((message_x, message_y), message_secondary, font=font_small, fill=0)
 
-    wifi_state, wifi_ssid = _split_wifi_text(wifi)
-    wifi_label = f"WIFI {_short_wifi_state(wifi_state)}"
-    wifi_value = wifi_ssid or "--"
-
-    cards = [
-        ("IP", ip),
-        ("BAT", battery),
-        (wifi_label, wifi_value),
-        ("TMP", temp),
-        ("UP", uptime),
-        ("LOAD", load),
-    ]
-
-    card_index = 0
-    for row in range(rows):
-        for col in range(cols):
-            if card_index >= len(cards):
-                break
-            x0 = right_x0 + col * (cell_width + gap_x)
-            y0 = grid_top + row * (cell_height + gap_y)
-            x1 = x0 + cell_width
-            y1 = y0 + cell_height
-            label, value = cards[card_index]
-            _draw_card(draw, (x0, y0, x1, y1), label, value, font_small, font_body)
-            card_index += 1
+    metrics_top = body_bottom - (_text_height(font_body) + _text_height(font_small) + 6)
+    if metrics_top < message_y + _text_height(font_small) + 4:
+        metrics_top = message_y + _text_height(font_small) + 4
+    metric_labels = [("MEM", mem), ("CPU", cpu), ("TMP", temp)]
+    columns = 3
+    inner_width = right_width - 8
+    col_width = max(1, inner_width // columns)
+    for index, (label, value) in enumerate(metric_labels):
+        x0 = right_x0 + 4 + index * col_width
+        x1 = x0 + col_width
+        _center_text(draw, label, font_small, (x0, metrics_top, x1, metrics_top + _text_height(font_small)), fill=0)
+        _center_text(
+            draw,
+            value or "--",
+            font_body,
+            (
+                x0,
+                metrics_top + _text_height(font_small) + 2,
+                x1,
+                metrics_top + _text_height(font_small) + 2 + _text_height(font_body),
+            ),
+            fill=0,
+        )
 
     if updated:
         updated_text = _fit_text(draw, updated, font_small, config.width - margin * 2)
         updated_width = _text_width(draw, updated_text, font_small)
-        updated_y = config.height - margin - _text_height(font_small)
+        updated_y = footer_top - 2 - _text_height(font_small)
         if updated_y > body_top:
             draw.text(
                 (config.width - margin - updated_width, updated_y),
