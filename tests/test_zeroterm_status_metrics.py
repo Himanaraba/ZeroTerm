@@ -68,10 +68,21 @@ class TestMetricsHelpers(unittest.TestCase):
             with mock.patch("zeroterm_status.metrics._read_operstate", return_value="up"):
                 with mock.patch("zeroterm_status.metrics._read_ssid", return_value="TEST"):
                     with mock.patch("zeroterm_status.metrics.get_ip_address", return_value="10.0.0.5"):
-                        info = metrics.read_wifi("wlan0")
+                        with mock.patch(
+                            "zeroterm_status.metrics._read_wifi_mode_channel",
+                            return_value=("managed", "11"),
+                        ):
+                            with mock.patch(
+                                "zeroterm_status.metrics._read_packet_count",
+                                return_value=1234,
+                            ):
+                                info = metrics.read_wifi("wlan0")
         self.assertEqual(info.state, "up")
         self.assertEqual(info.ssid, "TEST")
         self.assertEqual(info.ip, "10.0.0.5")
+        self.assertEqual(info.mode, "managed")
+        self.assertEqual(info.channel, "11")
+        self.assertEqual(info.packets, 1234)
 
     def test_read_time_sync_yes(self) -> None:
         with mock.patch("zeroterm_status.metrics.shutil.which", return_value="/bin/timedatectl"):

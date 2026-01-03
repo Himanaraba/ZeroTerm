@@ -80,6 +80,8 @@ def _build_live_payload(config):
         mem_text,
         cpu_text,
         battery.percent,
+        wifi.channel,
+        wifi.packets,
     )
 
 
@@ -98,6 +100,8 @@ def _build_sample_payload():
         "58%",
         "12%",
         67,
+        "11",
+        12458,
     )
 
 
@@ -156,6 +160,8 @@ def main() -> int:
             battery_percent=payload[12],
             updated=None,
             config=render_config,
+            wifi_channel=payload[13],
+            wifi_packets=payload[14],
         )
     except RuntimeError as exc:
         print(f"[error] {exc}", file=sys.stderr)

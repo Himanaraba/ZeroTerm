@@ -115,7 +115,11 @@ def _select_interval(config, battery_percent: int | None) -> int:
     return interval
 
 
-def build_payload(service_state: str | None, wifi, battery) -> tuple[str, str, str, str]:
+def build_payload(
+    service_state: str | None,
+    wifi,
+    battery,
+) -> tuple[str, str, str, str, str | None, int | None]:
     status = _format_status(service_state)
     ip = wifi.ip or "--"
     wifi_state = _format_wifi(wifi.state)
@@ -123,7 +127,7 @@ def build_payload(service_state: str | None, wifi, battery) -> tuple[str, str, s
     if wifi.ssid:
         wifi_text = f"{wifi_text} {wifi.ssid}"
     battery_text = _format_battery(battery.percent, battery.status)
-    return status, ip, wifi_text, battery_text
+    return status, ip, wifi_text, battery_text, wifi.channel, wifi.packets
 
 
 def main() -> None:
@@ -270,7 +274,11 @@ def main() -> None:
                     config.update_fetch,
                 )
                 last_update_at = now
-            status, ip, wifi_text, battery_text = build_payload(service.state, wifi, battery)
+            status, ip, wifi_text, battery_text, wifi_channel, wifi_packets = build_payload(
+                service.state,
+                wifi,
+                battery,
+            )
             external_iface = find_external_wifi(iface)
             temp_text = system.temp or "--"
             load_text = system.load or "--"
@@ -325,6 +333,8 @@ def main() -> None:
                         battery_percent=battery.percent,
                         updated=None,
                         config=render_config,
+                        wifi_channel=wifi_channel,
+                        wifi_packets=wifi_packets,
                     )
                 except RuntimeError as exc:
                     render_failures += 1

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import os
+import shlex
 
 
 @dataclass(frozen=True)
@@ -10,6 +11,7 @@ class Config:
     bind: str
     port: int
     shell: str
+    shell_cmd: list[str] | None
     term: str
     cwd: str | None
     log_level: str
@@ -56,6 +58,15 @@ def load_config() -> Config:
     except ValueError:
         port = 8080
     shell = _env_value("ZEROTERM_SHELL", "/bin/bash")
+    shell_cmd_value = os.environ.get("ZEROTERM_SHELL_CMD", "")
+    shell_cmd = None
+    if shell_cmd_value:
+        try:
+            shell_cmd = shlex.split(shell_cmd_value)
+        except ValueError:
+            shell_cmd = None
+    if shell_cmd == []:
+        shell_cmd = None
     term = _env_value("ZEROTERM_TERM", "linux")
     cwd = os.environ.get("ZEROTERM_CWD")
     if cwd == "":
@@ -75,6 +86,7 @@ def load_config() -> Config:
         bind=bind,
         port=port,
         shell=shell,
+        shell_cmd=shell_cmd,
         term=term,
         cwd=cwd,
         log_level=log_level,

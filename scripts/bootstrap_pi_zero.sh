@@ -10,7 +10,7 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 apt update
-apt install -y python3 git
+apt install -y python3 git tmux
 
 if [[ "${ENABLE_EPAPER}" == "1" ]]; then
   apt install -y python3-pil python3-spidev python3-rpi.gpio

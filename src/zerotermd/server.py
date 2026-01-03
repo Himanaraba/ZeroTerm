@@ -238,6 +238,22 @@ def _load_env_file(path: Path | None) -> dict[str, str]:
     return data
 
 
+def _get_env_value(env_data: dict[str, str], key: str, default: str | None = None) -> str | None:
+    value = env_data.get(key)
+    if value is None or value == "":
+        value = os.environ.get(key)
+    if value is None or value == "":
+        return default
+    return value
+
+
+def _get_env_bool(env_data: dict[str, str], key: str, default: bool) -> bool:
+    value = _get_env_value(env_data, key, None)
+    if value is None:
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _update_env_file(path: Path | None, key: str, value: str) -> bool:
     if path is None:
         return False
@@ -327,12 +343,40 @@ def _read_battery_snapshot(battery_path: str | None, battery_cmd: str | None) ->
 
 def _handle_status_request(conn: socket.socket, config: Config) -> None:
     env_data = _load_env_file(config.env_path)
-    battery_path = env_data.get("ZEROTERM_BATTERY_PATH") or os.environ.get("ZEROTERM_BATTERY_PATH")
-    battery_cmd = env_data.get("ZEROTERM_BATTERY_CMD") or os.environ.get("ZEROTERM_BATTERY_CMD")
-    profile = env_data.get("ZEROTERM_STATUS_PROFILE") or os.environ.get("ZEROTERM_STATUS_PROFILE")
+    battery_path = _get_env_value(env_data, "ZEROTERM_BATTERY_PATH")
+    battery_cmd = _get_env_value(env_data, "ZEROTERM_BATTERY_CMD")
+    profile = _get_env_value(env_data, "ZEROTERM_STATUS_PROFILE")
+    wifi_iface = _get_env_value(env_data, "ZEROTERM_STATUS_IFACE", "wlan0") or "wlan0"
+    wifi_auto = _get_env_bool(env_data, "ZEROTERM_STATUS_IFACE_AUTO", False)
+    wifi_ssid = _get_env_bool(env_data, "ZEROTERM_STATUS_WIFI_SSID", True)
 
     battery_percent, battery_status = _read_battery_snapshot(battery_path, battery_cmd)
     power_state = _format_power_state(battery_status)
+    wifi_payload: dict[str, object] = {
+        "wifi_iface": wifi_iface,
+        "wifi_state": None,
+        "wifi_ssid": None,
+        "wifi_mode": None,
+        "wifi_channel": None,
+        "wifi_packets": None,
+        "wifi_ip": None,
+    }
+    try:
+        from zeroterm_status.metrics import read_wifi, select_wifi_iface
+
+        selected_iface = select_wifi_iface(wifi_iface, wifi_auto)
+        wifi = read_wifi(selected_iface, read_ssid=wifi_ssid)
+        wifi_payload = {
+            "wifi_iface": wifi.iface,
+            "wifi_state": wifi.state,
+            "wifi_ssid": wifi.ssid,
+            "wifi_mode": wifi.mode,
+            "wifi_channel": wifi.channel,
+            "wifi_packets": wifi.packets,
+            "wifi_ip": wifi.ip,
+        }
+    except Exception:
+        pass
     payload = {
         "battery_percent": battery_percent,
         "battery_status": battery_status,
@@ -340,6 +384,7 @@ def _handle_status_request(conn: socket.socket, config: Config) -> None:
         "profile": profile or None,
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
+    payload.update(wifi_payload)
     _send_json(conn, 200, payload)
 
 
@@ -496,7 +541,7 @@ def _prune_sessions(ttl_seconds: int) -> None:
 
 def _attach_or_create_session(session_id: str | None, config: Config) -> SessionContext | None:
     if not config.session_resume or not session_id:
-        pid, master_fd = spawn_pty(config.shell, config.term, config.cwd)
+        pid, master_fd = spawn_pty(config.shell, config.term, config.cwd, config.shell_cmd)
         return SessionContext(
             pid=pid,
             master_fd=master_fd,
@@ -520,7 +565,7 @@ def _attach_or_create_session(session_id: str | None, config: Config) -> Session
                 log_path=session.log_path,
             )
 
-    pid, master_fd = spawn_pty(config.shell, config.term, config.cwd)
+    pid, master_fd = spawn_pty(config.shell, config.term, config.cwd, config.shell_cmd)
     log_path = _make_log_path(config, session_id, pid)
     new_session = StoredSession(
         pid=pid,

@@ -64,6 +64,8 @@ class TestRenderOutput(unittest.TestCase):
                 battery_percent=55,
                 updated=None,
                 config=config,
+                wifi_channel="6",
+                wifi_packets=1200,
             )
         except RuntimeError:
             self.skipTest("Pillow not available")

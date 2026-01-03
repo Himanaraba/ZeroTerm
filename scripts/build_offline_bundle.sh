@@ -18,7 +18,7 @@ fi
 
 mkdir -p "${PKG_DIR}" "${REPO_DIR}"
 
-packages=(python3 git)
+packages=(python3 git tmux)
 if [[ "${INCLUDE_EPAPER}" == "1" ]]; then
   packages+=(python3-pil python3-spidev python3-rpi.gpio)
 fi

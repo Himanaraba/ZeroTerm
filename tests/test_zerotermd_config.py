@@ -16,6 +16,7 @@ class TestZerotermdConfig(unittest.TestCase):
                     "ZEROTERM_BIND": "127.0.0.1",
                     "ZEROTERM_PORT": "9001",
                     "ZEROTERM_SHELL": "/bin/zsh",
+                    "ZEROTERM_SHELL_CMD": "tmux new -A -s zeroterm",
                     "ZEROTERM_TERM": "xterm-256color",
                     "ZEROTERM_CWD": "/tmp",
                     "ZEROTERM_LOG_LEVEL": "debug",
@@ -29,6 +30,7 @@ class TestZerotermdConfig(unittest.TestCase):
             self.assertEqual(config.bind, "127.0.0.1")
             self.assertEqual(config.port, 9001)
             self.assertEqual(config.shell, "/bin/zsh")
+            self.assertEqual(config.shell_cmd, ["tmux", "new", "-A", "-s", "zeroterm"])
             self.assertEqual(config.term, "xterm-256color")
             self.assertEqual(config.cwd, "/tmp")
             self.assertEqual(config.log_level, "debug")

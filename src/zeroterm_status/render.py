@@ -197,6 +197,30 @@ def _battery_short(percent: int | None, battery_text: str) -> str:
     return f"{percent}%{suffix}"
 
 
+def _format_packets(value: int | None) -> str:
+    if value is None:
+        return "--"
+    if value < 1000:
+        return str(value)
+    if value < 1_000_000:
+        scaled = value / 1000
+        text = f"{scaled:.1f}"
+        if text.endswith(".0"):
+            text = text[:-2]
+        return f"{text}k"
+    if value < 1_000_000_000:
+        scaled = value / 1_000_000
+        text = f"{scaled:.1f}"
+        if text.endswith(".0"):
+            text = text[:-2]
+        return f"{text}m"
+    scaled = value / 1_000_000_000
+    text = f"{scaled:.1f}"
+    if text.endswith(".0"):
+        text = text[:-2]
+    return f"{text}g"
+
+
 def _status_message(status_text: str) -> str:
     status = status_text.strip().upper()
     if status == "RUNNING":
@@ -345,6 +369,8 @@ def render_status(
     battery_percent: int | None,
     updated: str | None,
     config: RenderConfig,
+    wifi_channel: str | None = None,
+    wifi_packets: int | None = None,
 ):
     if Image is None or ImageDraw is None or ImageFont is None:
         raise RuntimeError("Pillow is required for e-paper rendering.")
@@ -463,6 +489,14 @@ def render_status(
     message_y += _text_height(font_small) + 2
     ssid_line = _fit_text(draw, f"SSID {wifi_ssid or '--'}", font_small, right_width - 4)
     draw.text((message_x, message_y), ssid_line, font=font_small, fill=0)
+    message_y += _text_height(font_small) + 2
+    channel_text = wifi_channel or "--"
+    packets_text = _format_packets(wifi_packets)
+    channel_line = _fit_text(draw, f"CH {channel_text}", font_small, right_width - 4)
+    draw.text((message_x, message_y), channel_line, font=font_small, fill=0)
+    message_y += _text_height(font_small) + 2
+    packets_line = _fit_text(draw, f"PKT {packets_text}", font_small, right_width - 4)
+    draw.text((message_x, message_y), packets_line, font=font_small, fill=0)
     message_y += _text_height(font_small) + 2
     if adapter:
         adapter_line = _fit_text(draw, f"EXT {adapter.upper()}", font_small, right_width - 4)

@@ -23,6 +23,9 @@ class WifiInfo:
     state: str | None
     ssid: str | None
     ip: str | None
+    mode: str | None
+    channel: str | None
+    packets: int | None
 
 
 @dataclass(frozen=True)
@@ -182,15 +185,82 @@ def _read_ssid(iface: str) -> str | None:
     return output
 
 
+def _read_wifi_mode_channel(iface: str) -> tuple[str | None, str | None]:
+    if shutil.which("iw") is None:
+        return None, None
+    output = _run_command(["iw", "dev", iface, "info"])
+    if not output:
+        return None, None
+    mode = None
+    channel = None
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith("type "):
+            parts = line.split()
+            if len(parts) >= 2:
+                mode = parts[1]
+        if "channel" in line:
+            match = re.search(r"channel\\s+(\\d+)", line)
+            if match:
+                channel = match.group(1)
+    return mode, channel
+
+
+def _read_stat_value(iface: str, name: str) -> int | None:
+    path = Path("/sys/class/net") / iface / "statistics" / name
+    try:
+        value = path.read_text(encoding="utf-8", errors="ignore").strip()
+    except OSError:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
+
+
+def _read_packet_count(iface: str) -> int | None:
+    rx = _read_stat_value(iface, "rx_packets")
+    tx = _read_stat_value(iface, "tx_packets")
+    if rx is None and tx is None:
+        return None
+    return (rx or 0) + (tx or 0)
+
+
 def read_wifi(iface: str, read_ssid: bool = True) -> WifiInfo:
     if not iface:
-        return WifiInfo(iface=iface, state=None, ssid=None, ip=None)
+        return WifiInfo(
+            iface=iface,
+            state=None,
+            ssid=None,
+            ip=None,
+            mode=None,
+            channel=None,
+            packets=None,
+        )
     if not _iface_exists(iface):
-        return WifiInfo(iface=iface, state="missing", ssid=None, ip=None)
+        return WifiInfo(
+            iface=iface,
+            state="missing",
+            ssid=None,
+            ip=None,
+            mode=None,
+            channel=None,
+            packets=None,
+        )
     state = _read_operstate(iface)
     ssid = _read_ssid(iface) if read_ssid else None
     ip = get_ip_address(iface)
-    return WifiInfo(iface=iface, state=state, ssid=ssid, ip=ip)
+    mode, channel = _read_wifi_mode_channel(iface)
+    packets = _read_packet_count(iface)
+    return WifiInfo(
+        iface=iface,
+        state=state,
+        ssid=ssid,
+        ip=ip,
+        mode=mode,
+        channel=channel,
+        packets=packets,
+    )
 
 
 def read_service_state(name: str) -> ServiceInfo:
