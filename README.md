@@ -34,9 +34,13 @@ It forwards raw bytes to a real PTY, so the experience matches SSH.
 
 ## Quick Start
 - Follow docs/SETUP_PI_ZERO.md for the real device.
-- One-line install on the Pi:
+- Minimal install on the Pi:
 ```
 curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/quick_install.sh | sudo bash
+```
+- Full install (e-Paper + RTL8821AU):
+```
+curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/full_install.sh | sudo bash
 ```
 - For UI preview on Windows: `python test\app.py`.
 

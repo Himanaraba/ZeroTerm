@@ -46,9 +46,14 @@ sudo apt install -y python3-pil python3-spidev python3-rpi.gpio
 ```
 
 ## 4) Install ZeroTerm
-Quick install (recommended):
+Minimal install:
 ```
 curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/quick_install.sh | sudo bash
+```
+
+Full install (e-Paper + RTL8821AU):
+```
+curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/full_install.sh | sudo bash
 ```
 
 Optional flags:
