@@ -225,6 +225,16 @@ Status / e-Paper:
   Battery percent threshold for low-power updates.
 - ZEROTERM_STATUS_LOW_BATTERY_INTERVAL (default: 0)
   If set, uses a slower update interval when below the threshold.
+- ZEROTERM_STATUS_WIFI_INTERVAL (default: 0)
+  If set, caches Wi-Fi info for this many seconds.
+- ZEROTERM_STATUS_SERVICE_INTERVAL (default: 0)
+  If set, caches service state for this many seconds.
+- ZEROTERM_STATUS_METRICS_INTERVAL (default: 0)
+  If set, caches system metrics for this many seconds.
+- ZEROTERM_STATUS_IDLE_INTERVAL (default: 0)
+  If set, sleeps longer when the payload is unchanged.
+- ZEROTERM_STATUS_WIFI_SSID (default: 1)
+  When 0, skip SSID reads to reduce work.
 - ZEROTERM_EPAPER_DRIVER (default: waveshare)
   Display backend: waveshare, file, or null.
 - ZEROTERM_EPAPER_MODEL (default: epd2in13_V3)
