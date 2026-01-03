@@ -156,13 +156,36 @@ sudo systemctl enable --now zeroterm-status.service
 - Open `http://<pi-ip>:<port>/` in Safari.
 
 ## Web UI telemetry
-- Header shows BAT/PWR/MODE from the Pi battery status.
+- Header shows BAT/PWR/MODE from `GET /api/status` (polls about every 15s).
+- Battery source uses `ZEROTERM_BATTERY_CMD` or `ZEROTERM_BATTERY_PATH`.
+- Preset buttons call `POST /api/power` and restart `zeroterm-status`.
 - Use the preset buttons or run:
 ```
 sudo zeroterm-power eco
 sudo zeroterm-power balanced
 sudo zeroterm-power performance
+sudo zeroterm-power default
 ```
+
+API examples:
+```
+curl -s http://<pi-ip>:<port>/api/status
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"profile":"eco"}' \
+  http://<pi-ip>:<port>/api/power
+```
+
+## Troubleshooting (error-prone areas)
+- Battery shows `--`: the Pi has no battery device or the path is wrong. Set
+  `ZEROTERM_BATTERY_CMD` (PiSugar, UPS) or `ZEROTERM_BATTERY_PATH`.
+- Preset buttons do nothing: confirm `zeroterm.service` is running and
+  `/api/status` responds on the same host/port.
+- Preset change not reflected: check that `ZEROTERM_ENV_PATH` is writable and
+  `zeroterm-status.service` restarts without errors (`journalctl -u zeroterm-status.service`).
+- Serving static files elsewhere: if `ZEROTERM_STATIC_DIR` points to a separate
+  host, `/api/*` must still be routed to zerotermd.
+- `zeroterm-power` missing: re-run `scripts/install_pi_zero.sh` or install the
+  script to `/usr/local/bin/zeroterm-power`.
 
 ## Notes
 - Built-in Wi-Fi is for management/web access.
