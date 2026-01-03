@@ -8,7 +8,7 @@ from .display import create_display
 from .drivers.base import DisplayError
 from .drivers.file import FileDisplay
 from .drivers.null import NullDisplay
-from .metrics import read_battery, read_service_state, read_wifi
+from .metrics import read_battery, read_service_state, read_system, read_wifi
 from .render import RenderConfig, render_status
 
 logger = logging.getLogger(__name__)
@@ -87,9 +87,23 @@ def main() -> None:
         try:
             wifi = read_wifi(config.iface)
             battery = read_battery(config.battery_path, config.battery_cmd)
+            system = read_system()
             service = read_service_state(config.service_name)
             status, ip, wifi_text, battery_text = build_payload(service.state, wifi, battery)
-            payload = "\n".join([status, ip, wifi_text, battery_text])
+            temp_text = system.temp or "--"
+            load_text = system.load or "--"
+            uptime_text = system.uptime or "--"
+            payload = "\n".join(
+                [
+                    status,
+                    ip,
+                    wifi_text,
+                    battery_text,
+                    temp_text,
+                    load_text,
+                    uptime_text,
+                ]
+            )
             if payload != last_payload and not render_failed:
                 try:
                     image = render_status(
@@ -97,6 +111,10 @@ def main() -> None:
                         ip=ip,
                         wifi=wifi_text,
                         battery=battery_text,
+                        temp=temp_text,
+                        load=load_text,
+                        uptime=uptime_text,
+                        battery_percent=battery.percent,
                         updated=None,
                         config=render_config,
                     )

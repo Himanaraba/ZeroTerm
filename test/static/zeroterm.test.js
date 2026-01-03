@@ -948,12 +948,28 @@
       }
       .epaper-debug__body {
         flex: 1;
-        padding: 6px 8px;
+        padding: 4px 8px 2px;
         display: flex;
         flex-direction: column;
-        gap: 4px;
-        font-size: 12px;
+        gap: 2px;
+      }
+      .epaper-debug__face {
+        font-size: 20px;
+        text-align: center;
+        line-height: 1;
+        margin: 4px 0 2px;
+      }
+      .epaper-debug__grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 8px;
+        font-size: 10px;
         line-height: 1.2;
+      }
+      .epaper-debug__line {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .epaper-debug__hint {
         padding: 2px 8px 6px;
@@ -981,18 +997,28 @@
         <span class="epaper-debug__status"></span>
       </div>
       <div class="epaper-debug__body">
-        <div class="epaper-debug__line" data-line="ip"></div>
-        <div class="epaper-debug__line" data-line="wifi"></div>
-        <div class="epaper-debug__line" data-line="bat"></div>
+        <div class="epaper-debug__face"></div>
+        <div class="epaper-debug__grid">
+          <div class="epaper-debug__line" data-line="ip"></div>
+          <div class="epaper-debug__line" data-line="bat"></div>
+          <div class="epaper-debug__line" data-line="wifi"></div>
+          <div class="epaper-debug__line" data-line="temp"></div>
+          <div class="epaper-debug__line" data-line="up"></div>
+          <div class="epaper-debug__line" data-line="load"></div>
+        </div>
       </div>
       <div class="epaper-debug__hint">debug only</div>
     `;
     document.body.appendChild(panel);
 
     const statusEl = panel.querySelector(".epaper-debug__status");
+    const faceEl = panel.querySelector(".epaper-debug__face");
     const ipEl = panel.querySelector('[data-line="ip"]');
     const wifiEl = panel.querySelector('[data-line="wifi"]');
     const batEl = panel.querySelector('[data-line="bat"]');
+    const tempEl = panel.querySelector('[data-line="temp"]');
+    const upEl = panel.querySelector('[data-line="up"]');
+    const loadEl = panel.querySelector('[data-line="load"]');
     const ssids = ["ZEROTERM-LAB", "FIELD-NODE", "KALI-NET"];
 
     const render = () => {
@@ -1004,10 +1030,20 @@
       const wifiState = navigator.onLine ? "UP" : "DOWN";
       const ssid = ssids[Math.floor(Math.random() * ssids.length)];
       const battery = Math.floor(40 + Math.random() * 55);
+      const load = (Math.random() * 0.9 + 0.1).toFixed(2);
+      const temp = Math.floor(36 + Math.random() * 10);
+      const upHours = Math.floor(1 + Math.random() * 9);
+      const upMinutes = Math.floor(Math.random() * 59);
+      const face = status === "RUNNING" ? "(o_o)" : "(-_-)";
+      const faceText = battery <= 20 ? "(;_;)" : face;
       statusEl.textContent = status;
+      faceEl.textContent = faceText;
       ipEl.textContent = `IP ${ip}`;
       wifiEl.textContent = `WIFI ${wifiState} ${ssid}`;
       batEl.textContent = `BAT ${battery}%`;
+      tempEl.textContent = `TMP ${temp}C`;
+      loadEl.textContent = `LOAD ${load}`;
+      upEl.textContent = `UP ${upHours}h${upMinutes}m`;
     };
 
     render();

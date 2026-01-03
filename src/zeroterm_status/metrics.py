@@ -31,6 +31,13 @@ class ServiceInfo:
     state: str | None
 
 
+@dataclass(frozen=True)
+class SystemInfo:
+    uptime: str | None
+    load: str | None
+    temp: str | None
+
+
 def _run_command(args: list[str]) -> str | None:
     try:
         result = subprocess.run(
@@ -152,3 +159,77 @@ def read_service_state(name: str) -> ServiceInfo:
         return ServiceInfo(name=name, state=None)
     output = _run_command(["systemctl", "is-active", name])
     return ServiceInfo(name=name, state=output)
+
+
+def _format_uptime(seconds: float) -> str:
+    minutes = int(seconds // 60)
+    days, rem = divmod(minutes, 24 * 60)
+    hours, minutes = divmod(rem, 60)
+    if days > 0:
+        return f"{days}d{hours}h"
+    if hours > 0:
+        return f"{hours}h{minutes}m"
+    return f"{minutes}m"
+
+
+def _read_file_text(path: Path) -> str | None:
+    try:
+        return path.read_text(encoding="utf-8", errors="ignore").strip()
+    except OSError:
+        return None
+
+
+def read_uptime() -> str | None:
+    text = _read_file_text(Path("/proc/uptime"))
+    if not text:
+        return None
+    try:
+        seconds = float(text.split()[0])
+    except (ValueError, IndexError):
+        return None
+    return _format_uptime(seconds)
+
+
+def read_load() -> str | None:
+    text = _read_file_text(Path("/proc/loadavg"))
+    if not text:
+        return None
+    try:
+        load_value = float(text.split()[0])
+    except (ValueError, IndexError):
+        return None
+    return f"{load_value:.2f}"
+
+
+def _parse_temp_value(raw: str) -> str | None:
+    try:
+        value = int(raw.strip())
+    except ValueError:
+        return None
+    if value > 1000:
+        value = int(round(value / 1000))
+    if value < -20 or value > 150:
+        return None
+    return f"{value}C"
+
+
+def read_temperature() -> str | None:
+    root = Path("/sys/class/thermal")
+    if not root.exists():
+        return None
+    for path in sorted(root.glob("thermal_zone*/temp")):
+        text = _read_file_text(path)
+        if not text:
+            continue
+        parsed = _parse_temp_value(text)
+        if parsed:
+            return parsed
+    return None
+
+
+def read_system() -> SystemInfo:
+    return SystemInfo(
+        uptime=read_uptime(),
+        load=read_load(),
+        temp=read_temperature(),
+    )
