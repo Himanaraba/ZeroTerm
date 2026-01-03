@@ -289,7 +289,8 @@ body::after {
 }
 
 .terminal-row {
-  min-height: 1.3em;
+  height: 1.3em;
+  line-height: 1.3em;
   white-space: pre;
 }
 

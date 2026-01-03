@@ -1043,14 +1043,21 @@
     _measure() {
       const probe = document.createElement("span");
       probe.className = "probe";
-      probe.textContent = "M";
+      const sampleSize = 10;
+      probe.textContent = "M".repeat(sampleSize);
       this.textEl.appendChild(probe);
       const rect = probe.getBoundingClientRect();
       probe.remove();
 
+      const styles = window.getComputedStyle(this.textEl);
+      const lineHeight = parseFloat(styles.lineHeight);
+      const fontSize = parseFloat(styles.fontSize);
+
       this.cell = {
-        width: rect.width || 8,
-        height: rect.height || 16,
+        width: rect.width > 0 ? rect.width / sampleSize : 8,
+        height: Number.isFinite(lineHeight)
+          ? lineHeight
+          : rect.height || (Number.isFinite(fontSize) ? fontSize * 1.3 : 16),
       };
 
       const textRect = this.textEl.getBoundingClientRect();
@@ -1255,12 +1262,16 @@
         return "\t";
       case "Escape":
         return "\x1b";
+      case "Up":
       case "ArrowUp":
         return "\x1b[A";
+      case "Down":
       case "ArrowDown":
         return "\x1b[B";
+      case "Right":
       case "ArrowRight":
         return "\x1b[C";
+      case "Left":
       case "ArrowLeft":
         return "\x1b[D";
       case "Home":
@@ -1275,6 +1286,21 @@
         return "\x1b[3~";
       default:
         break;
+    }
+
+    if (event.keyCode) {
+      switch (event.keyCode) {
+        case 38:
+          return "\x1b[A";
+        case 40:
+          return "\x1b[B";
+        case 39:
+          return "\x1b[C";
+        case 37:
+          return "\x1b[D";
+        default:
+          break;
+      }
     }
 
     return null;
@@ -1330,6 +1356,10 @@
         inputEl.focus();
       }
     });
+  }
+
+  if (keysEl && navigator.maxTouchPoints > 0) {
+    keysEl.style.display = "flex";
   }
 
   if (powerActionsEl) {
