@@ -46,7 +46,7 @@ def _build_live_payload(config):
     )
 
     iface = select_wifi_iface(config.iface, config.iface_auto)
-    wifi = read_wifi(iface)
+    wifi = read_wifi(iface, read_ssid=config.wifi_ssid)
     battery = read_battery(config.battery_path, config.battery_cmd)
     system = read_system()
     service = read_service_state(config.service_name)

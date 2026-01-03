@@ -182,13 +182,13 @@ def _read_ssid(iface: str) -> str | None:
     return output
 
 
-def read_wifi(iface: str) -> WifiInfo:
+def read_wifi(iface: str, read_ssid: bool = True) -> WifiInfo:
     if not iface:
         return WifiInfo(iface=iface, state=None, ssid=None, ip=None)
     if not _iface_exists(iface):
         return WifiInfo(iface=iface, state="missing", ssid=None, ip=None)
     state = _read_operstate(iface)
-    ssid = _read_ssid(iface)
+    ssid = _read_ssid(iface) if read_ssid else None
     ip = get_ip_address(iface)
     return WifiInfo(iface=iface, state=state, ssid=ssid, ip=ip)
 

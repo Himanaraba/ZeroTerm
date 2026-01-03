@@ -107,15 +107,54 @@ def main() -> None:
     last_payload = None
     next_render_attempt = 0.0
     render_failures = 0
+    last_wifi = None
+    last_wifi_at = 0.0
+    last_service = None
+    last_service_at = 0.0
+    last_system = None
+    last_system_at = 0.0
 
     while True:
         interval = config.interval
+        payload = None
         try:
+            now = time.monotonic()
             iface = select_wifi_iface(config.iface, config.iface_auto)
-            wifi = read_wifi(iface)
+            if (
+                config.wifi_interval > 0
+                and last_wifi is not None
+                and now - last_wifi_at < config.wifi_interval
+                and last_wifi.iface == iface
+            ):
+                wifi = last_wifi
+            else:
+                wifi = read_wifi(iface, read_ssid=config.wifi_ssid)
+                last_wifi = wifi
+                last_wifi_at = now
+
+            if (
+                config.service_interval > 0
+                and last_service is not None
+                and now - last_service_at < config.service_interval
+            ):
+                service = last_service
+            else:
+                service = read_service_state(config.service_name)
+                last_service = service
+                last_service_at = now
+
             battery = read_battery(config.battery_path, config.battery_cmd)
-            system = read_system()
-            service = read_service_state(config.service_name)
+
+            if (
+                config.metrics_interval > 0
+                and last_system is not None
+                and now - last_system_at < config.metrics_interval
+            ):
+                system = last_system
+            else:
+                system = read_system()
+                last_system = system
+                last_system_at = now
             status, ip, wifi_text, battery_text = build_payload(service.state, wifi, battery)
             external_iface = find_external_wifi(iface)
             temp_text = system.temp or "--"
@@ -175,6 +214,8 @@ def main() -> None:
                 last_payload = payload
         except Exception:
             logger.exception("Status update failed")
+        if payload is not None and config.idle_interval > 0 and last_payload == payload:
+            interval = max(interval, config.idle_interval)
         time.sleep(interval)
 
 

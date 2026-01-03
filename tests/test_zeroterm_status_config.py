@@ -18,6 +18,11 @@ class TestStatusConfig(unittest.TestCase):
                 "ZEROTERM_STATUS_NIGHT_INTERVAL": "120",
                 "ZEROTERM_STATUS_LOW_BATTERY": "25",
                 "ZEROTERM_STATUS_LOW_BATTERY_INTERVAL": "180",
+                "ZEROTERM_STATUS_WIFI_INTERVAL": "20",
+                "ZEROTERM_STATUS_SERVICE_INTERVAL": "30",
+                "ZEROTERM_STATUS_METRICS_INTERVAL": "45",
+                "ZEROTERM_STATUS_IDLE_INTERVAL": "90",
+                "ZEROTERM_STATUS_WIFI_SSID": "0",
             }
         ):
             config = load_config()
@@ -29,6 +34,11 @@ class TestStatusConfig(unittest.TestCase):
         self.assertEqual(config.night_interval, 120)
         self.assertEqual(config.low_battery_threshold, 25)
         self.assertEqual(config.low_battery_interval, 180)
+        self.assertEqual(config.wifi_interval, 20)
+        self.assertEqual(config.service_interval, 30)
+        self.assertEqual(config.metrics_interval, 45)
+        self.assertEqual(config.idle_interval, 90)
+        self.assertFalse(config.wifi_ssid)
 
     def test_clamping(self) -> None:
         with temp_env(

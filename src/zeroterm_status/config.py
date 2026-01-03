@@ -27,6 +27,11 @@ class StatusConfig:
     night_interval: int
     low_battery_threshold: int
     low_battery_interval: int
+    wifi_interval: int
+    service_interval: int
+    metrics_interval: int
+    idle_interval: int
+    wifi_ssid: bool
 
 
 def _env(name: str, default: str) -> str:
@@ -93,6 +98,11 @@ def load_config() -> StatusConfig:
     night_interval = max(0, _env_int("ZEROTERM_STATUS_NIGHT_INTERVAL", 0))
     low_battery_threshold = max(0, min(100, _env_int("ZEROTERM_STATUS_LOW_BATTERY", 0)))
     low_battery_interval = max(0, _env_int("ZEROTERM_STATUS_LOW_BATTERY_INTERVAL", 0))
+    wifi_interval = max(0, _env_int("ZEROTERM_STATUS_WIFI_INTERVAL", 0))
+    service_interval = max(0, _env_int("ZEROTERM_STATUS_SERVICE_INTERVAL", 0))
+    metrics_interval = max(0, _env_int("ZEROTERM_STATUS_METRICS_INTERVAL", 0))
+    idle_interval = max(0, _env_int("ZEROTERM_STATUS_IDLE_INTERVAL", 0))
+    wifi_ssid = _env_bool("ZEROTERM_STATUS_WIFI_SSID", True)
 
     return StatusConfig(
         interval=interval,
@@ -116,4 +126,9 @@ def load_config() -> StatusConfig:
         night_interval=night_interval,
         low_battery_threshold=low_battery_threshold,
         low_battery_interval=low_battery_interval,
+        wifi_interval=wifi_interval,
+        service_interval=service_interval,
+        metrics_interval=metrics_interval,
+        idle_interval=idle_interval,
+        wifi_ssid=wifi_ssid,
     )
