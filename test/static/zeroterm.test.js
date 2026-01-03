@@ -1040,9 +1040,9 @@
     _updateCursor() {
       const row = this.emulator.cursorRow;
       const col = this.emulator.cursorCol;
-      const x = Math.floor(this.origin.x + col * this.cell.width);
-      const y = Math.floor(this.origin.y + row * this.cell.height);
-      this.cursorEl.style.transform = `translate(${x}px, ${y}px)`;
+      const x = this.origin.x + col * this.cell.width;
+      const y = this.origin.y + row * this.cell.height;
+      this.cursorEl.style.transform = `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px)`;
       this.cursorEl.style.opacity = this.emulator.cursorVisible ? "1" : "0";
     }
   }
