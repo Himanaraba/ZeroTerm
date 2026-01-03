@@ -85,6 +85,23 @@ Use live metrics when available:
 python3 scripts/render_status_sample.py --live
 ```
 
+## Quick Checks (No Hardware)
+
+1) Install Pillow (if missing):
+```
+python3 -m pip install Pillow
+```
+
+2) Render a sample PNG:
+```
+python3 scripts/render_status_sample.py --output /tmp/zeroterm_epaper.png
+```
+
+3) Render with live metrics (optional):
+```
+python3 scripts/render_status_sample.py --live
+```
+
 ## Notes
 
 - Refresh is throttled to avoid unnecessary e-Paper updates.
