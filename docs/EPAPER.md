@@ -1,14 +1,16 @@
 # e-Paper Status Display
 
 ZeroTerm can render a small status summary to a 2.13-inch e-Paper display.
-This display is intentionally limited to system state and connectivity.
+This display is intentionally limited to a compact system/health overview.
 
 ## Displayed Items
 
 - System state (READY / RUNNING / DOWN)
 - IP address (management interface)
 - Wi-Fi state and SSID (if available)
-- Battery percentage
+- Battery percentage (and charge state when available)
+- Uptime, temperature, and load (lightweight health summary)
+- A small status face to mirror the device mood
 
 ## Requirements (Waveshare 2.13)
 

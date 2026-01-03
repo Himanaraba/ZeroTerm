@@ -17,7 +17,7 @@ forwarded without filtering or sandboxing.
 - zerotermd: Python standard library server (HTTP, WebSocket, PTY).
 - Web client: minimal HTML/CSS/JS with a tiny VT subset.
 - systemd unit: runs zerotermd at boot.
-- zeroterm-status: e-Paper status renderer (battery/IP/Wi-Fi).
+- zeroterm-status: e-Paper status renderer (status/IP/Wi-Fi/battery/uptime/temp/load).
 - Environment config: /etc/zeroterm/zeroterm.env.
 
 ## Protocol Summary

@@ -107,10 +107,11 @@ The hardware limits are part of the design.
 ## ePaper Philosophy
 
 The ePaper display is not a terminal. It shows:
-- System state (READY / RUNNING)
+- System state (READY / RUNNING / DOWN)
 - IP address for web access
-- Battery level
-- Wi-Fi status
+- Wi-Fi status (and SSID when available)
+- Battery level (and charge state when available)
+- Uptime, temperature, and load (lightweight health summary)
 
 It does not show logs or TTY output.
 
