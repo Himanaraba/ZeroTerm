@@ -970,6 +970,10 @@
         flex-direction: column;
         gap: 4px;
       }
+      .epaper-debug__name {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+      }
       .epaper-debug__face-wrap {
         flex: 1;
         border: 1px solid #111;
@@ -1135,6 +1139,7 @@
       </div>
       <div class="epaper-debug__body">
         <div class="epaper-debug__left">
+          <div class="epaper-debug__name">zeroterm&gt;</div>
           <div class="epaper-debug__face-wrap">
             <div class="epaper-debug__face">
               <div class="epaper-debug__eye left"></div>

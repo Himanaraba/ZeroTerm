@@ -73,6 +73,31 @@ def _fit_text(draw, text: str, font, max_width: int) -> str:
     return ""
 
 
+def _wrap_text(draw, text: str, font, max_width: int, max_lines: int = 2) -> list[str]:
+    words = text.split()
+    if not words:
+        return []
+    lines = []
+    current = ""
+    for word in words:
+        candidate = word if not current else f"{current} {word}"
+        if _text_width(draw, candidate, font) <= max_width:
+            current = candidate
+            continue
+        if current:
+            lines.append(current)
+        current = word
+        if len(lines) >= max_lines - 1:
+            break
+    if current and len(lines) < max_lines:
+        lines.append(current)
+    if len(lines) > max_lines:
+        lines = lines[:max_lines]
+    if len(lines) == max_lines and len(words) > 0:
+        lines[-1] = _fit_text(draw, lines[-1], font, max_width)
+    return lines
+
+
 def _center_text(draw, text: str, font, box, fill: int = 0) -> None:
     x0, y0, x1, y1 = box
     text_width = _text_width(draw, text, font)
@@ -362,6 +387,7 @@ def render_status(
     segment_count = len(segments)
     usable_width = config.width - 2
     segment_width = max(1, usable_width // segment_count)
+    header_text_y = max(0, (header_height - _text_height(font_header)) // 2)
     for index, segment in enumerate(segments):
         x0 = 1 + index * segment_width
         x1 = (
@@ -369,10 +395,8 @@ def render_status(
             if index < segment_count - 1
             else config.width - 1
         )
-        if index > 0:
-            draw.line((x0, 0, x0, header_height), fill=255)
         text = _fit_text(draw, segment, font_header, x1 - x0 - 4)
-        _center_text(draw, text, font_header, (x0 + 1, 0, x1 - 1, header_height), fill=255)
+        draw.text((x0 + 2, header_text_y), text, font=font_header, fill=255)
 
     footer_top = config.height - footer_height
     draw.rectangle((0, footer_top, config.width - 1, config.height - 1), fill=255)
@@ -412,9 +436,14 @@ def render_status(
     bar_height = max(6, label_height // 2 + 2)
     battery_block = label_height + bar_height + 6
 
+    name_text = _fit_text(draw, "zeroterm>", font_body, left_width - 8)
+    name_y = body_top + 3
+    draw.text((left_x0 + 4, name_y), name_text, font=font_body, fill=0)
+    name_block = _text_height(font_body) + 4
+
     face_box = (
         left_x0 + 4,
-        body_top + 4,
+        name_y + name_block,
         left_x1 - 4,
         body_bottom - battery_block - 4,
     )
@@ -440,19 +469,25 @@ def render_status(
     bar_box = (left_x0 + 4, bar_y, left_x1 - 6, bar_y + bar_height)
     _draw_battery_bar(draw, bar_box, battery_percent)
 
-    message_primary = _status_message(status_text)
-    message_secondary = f"STATE {status_text}"
     message_x = right_x0 + 4
     message_y = body_top + 4
-    message_primary = _fit_text(draw, message_primary, font_body, right_width - 8)
-    draw.text((message_x, message_y), message_primary, font=font_body, fill=0)
-    message_y += _text_height(font_body) + 2
-    message_secondary = _fit_text(draw, message_secondary, font_small, right_width - 8)
+    message_lines = _wrap_text(
+        draw,
+        _status_message(status_text),
+        font_body,
+        right_width - 8,
+        max_lines=2,
+    )
+    for line in message_lines:
+        draw.text((message_x, message_y), line, font=font_body, fill=0)
+        message_y += _text_height(font_body) + 2
+    message_secondary = _fit_text(draw, f"STATE {status_text}", font_small, right_width - 8)
     draw.text((message_x, message_y), message_secondary, font=font_small, fill=0)
+    message_y += _text_height(font_small) + 2
 
     metrics_top = body_bottom - (_text_height(font_body) + _text_height(font_small) + 6)
-    if metrics_top < message_y + _text_height(font_small) + 4:
-        metrics_top = message_y + _text_height(font_small) + 4
+    if metrics_top < message_y + 2:
+        metrics_top = message_y + 2
     metric_labels = [("MEM", mem), ("CPU", cpu), ("TMP", temp)]
     columns = 3
     inner_width = right_width - 8
