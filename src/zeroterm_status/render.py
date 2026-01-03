@@ -173,6 +173,118 @@ def _status_message(status_text: str) -> str:
     return "STATUS UNKNOWN"
 
 
+def _draw_eye_open(draw, center: tuple[int, int], radius: int) -> None:
+    x, y = center
+    draw.ellipse((x - radius, y - radius, x + radius, y + radius), outline=0)
+    pupil = max(1, radius // 2)
+    draw.ellipse((x - pupil, y - pupil, x + pupil, y + pupil), fill=0)
+
+
+def _draw_eye_line(draw, center: tuple[int, int], radius: int) -> None:
+    x, y = center
+    draw.line((x - radius, y, x + radius, y), fill=0)
+
+
+def _draw_eye_cross(draw, center: tuple[int, int], radius: int) -> None:
+    x, y = center
+    draw.line((x - radius, y - radius, x + radius, y + radius), fill=0)
+    draw.line((x - radius, y + radius, x + radius, y - radius), fill=0)
+
+
+def _draw_mouth(draw, box, mood: str) -> None:
+    x0, y0, x1, y1 = box
+    if mood == "happy" or mood == "wink":
+        draw.arc((x0, y0, x1, y1), 200, 340, fill=0)
+    elif mood == "sad":
+        draw.arc((x0, y0, x1, y1), 20, 160, fill=0)
+    else:
+        y = (y0 + y1) // 2
+        draw.line((x0, y, x1, y), fill=0)
+
+
+def _draw_face(draw, box, mood: str) -> None:
+    x0, y0, x1, y1 = box
+    width = max(1, x1 - x0)
+    height = max(1, y1 - y0)
+    pad = max(2, int(min(width, height) * 0.08))
+    head = (x0 + pad, y0 + pad, x1 - pad, y1 - pad)
+    draw.ellipse(head, outline=0)
+
+    center_x = (x0 + x1) // 2
+    eye_y = y0 + int(height * 0.42)
+    eye_dx = int(width * 0.18)
+    eye_radius = max(2, int(min(width, height) * 0.08))
+
+    left_eye = (center_x - eye_dx, eye_y)
+    right_eye = (center_x + eye_dx, eye_y)
+
+    if mood == "dead":
+        _draw_eye_cross(draw, left_eye, eye_radius)
+        _draw_eye_cross(draw, right_eye, eye_radius)
+    elif mood == "sad":
+        draw.arc(
+            (
+                left_eye[0] - eye_radius,
+                left_eye[1] - eye_radius,
+                left_eye[0] + eye_radius,
+                left_eye[1] + eye_radius,
+            ),
+            20,
+            160,
+            fill=0,
+        )
+        draw.arc(
+            (
+                right_eye[0] - eye_radius,
+                right_eye[1] - eye_radius,
+                right_eye[0] + eye_radius,
+                right_eye[1] + eye_radius,
+            ),
+            20,
+            160,
+            fill=0,
+        )
+    elif mood == "wink":
+        _draw_eye_open(draw, left_eye, eye_radius)
+        _draw_eye_line(draw, right_eye, eye_radius)
+    else:
+        _draw_eye_open(draw, left_eye, eye_radius)
+        _draw_eye_open(draw, right_eye, eye_radius)
+
+    mouth_width = int(width * 0.34)
+    mouth_height = int(height * 0.18)
+    mouth_x0 = center_x - mouth_width // 2
+    mouth_y0 = y0 + int(height * 0.58)
+    _draw_mouth(
+        draw,
+        (mouth_x0, mouth_y0, mouth_x0 + mouth_width, mouth_y0 + mouth_height),
+        mood,
+    )
+
+    if mood in {"happy", "wink"}:
+        blush_y = y0 + int(height * 0.58)
+        blush_dx = int(width * 0.28)
+        blush_r = max(1, eye_radius // 2)
+        draw.ellipse(
+            (
+                center_x - blush_dx - blush_r,
+                blush_y - blush_r,
+                center_x - blush_dx + blush_r,
+                blush_y + blush_r,
+            ),
+            outline=0,
+        )
+        draw.ellipse(
+            (
+                center_x + blush_dx - blush_r,
+                blush_y - blush_r,
+                center_x + blush_dx + blush_r,
+                blush_y + blush_r,
+            ),
+            outline=0,
+        )
+
+
 def render_lines(lines: Iterable[str], config: RenderConfig):
     if Image is None or ImageDraw is None or ImageFont is None:
         raise RuntimeError("Pillow is required for e-paper rendering.")
@@ -225,13 +337,7 @@ def render_status(
     font_header = _load_font(config.font_path, max(9, config.font_size - 4))
     font_body = _load_font(config.font_path, max(10, config.font_size - 2))
     font_small = _load_font(config.font_path, max(8, config.font_size - 6))
-    font_face = _load_font(config.font_path, max(18, config.font_size + 4))
-    if (
-        font_body is None
-        or font_header is None
-        or font_face is None
-        or font_small is None
-    ):
+    if font_body is None or font_header is None or font_small is None:
         raise RuntimeError("Pillow font unavailable.")
 
     margin = config.margin
@@ -319,10 +425,9 @@ def render_status(
         face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2) + face_size,
         face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2) + face_size,
     )
-    face_text = _pick_face(status_text, battery_percent)
+    face_mood = _pick_face(status_text, battery_percent)
     if face_box[2] > face_box[0] and face_box[3] > face_box[1]:
-        draw.ellipse(face_box, outline=0)
-        _center_text(draw, face_text, font_face, face_box, fill=0)
+        _draw_face(draw, face_box, face_mood)
 
     bat_label = "BAT"
     bat_value = f"{battery_percent}%" if battery_percent is not None else "--"
@@ -389,11 +494,11 @@ def render_status(
 def _pick_face(status_text: str, battery_percent: int | None) -> str:
     status = status_text.strip().upper()
     if status in {"DOWN", "FAILED"}:
-        return "(x_x)"
+        return "dead"
     if battery_percent is not None and battery_percent <= 15:
-        return "(T_T)"
+        return "sad"
     if status == "RUNNING":
-        return "(^_^)"
+        return "happy"
     if status == "READY":
-        return "(^_~)"
-    return "(^_^)"
+        return "wink"
+    return "happy"

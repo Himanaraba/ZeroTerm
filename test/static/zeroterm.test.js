@@ -976,10 +976,84 @@
         border-radius: 50%;
         display: grid;
         place-items: center;
+        padding: 8px;
       }
       .epaper-debug__face {
-        font-size: 20px;
-        line-height: 1;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border: 1px solid #111;
+        border-radius: 50%;
+      }
+      .epaper-debug__eye {
+        position: absolute;
+        top: 32%;
+        width: 8px;
+        height: 8px;
+        border: 1px solid #111;
+        border-radius: 50%;
+      }
+      .epaper-debug__eye::after {
+        content: "";
+        position: absolute;
+        inset: 2px;
+        background: #111;
+        border-radius: 50%;
+      }
+      .epaper-debug__eye.left {
+        left: 26%;
+      }
+      .epaper-debug__eye.right {
+        right: 26%;
+      }
+      .epaper-debug__mouth {
+        position: absolute;
+        bottom: 22%;
+        left: 50%;
+        width: 24px;
+        height: 12px;
+        border: 2px solid transparent;
+        border-bottom-color: #111;
+        border-radius: 0 0 999px 999px;
+        transform: translateX(-50%);
+      }
+      .epaper-debug__face.is-sad .epaper-debug__mouth {
+        border-bottom-color: transparent;
+        border-top-color: #111;
+        border-radius: 999px 999px 0 0;
+        bottom: 18%;
+      }
+      .epaper-debug__face.is-wink .epaper-debug__eye.right {
+        height: 2px;
+        border: none;
+        background: #111;
+        top: 36%;
+      }
+      .epaper-debug__face.is-wink .epaper-debug__eye.right::after {
+        display: none;
+      }
+      .epaper-debug__face.is-dead .epaper-debug__eye {
+        border: none;
+      }
+      .epaper-debug__face.is-dead .epaper-debug__eye::after {
+        display: none;
+      }
+      .epaper-debug__face.is-dead .epaper-debug__eye::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-top: 2px solid #111;
+        border-left: 2px solid #111;
+        transform: rotate(45deg);
+      }
+      .epaper-debug__face.is-dead .epaper-debug__eye::after {
+        display: block;
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-top: 2px solid #111;
+        border-left: 2px solid #111;
+        transform: rotate(-45deg);
       }
       .epaper-debug__battery {
         display: flex;
@@ -1062,7 +1136,11 @@
       <div class="epaper-debug__body">
         <div class="epaper-debug__left">
           <div class="epaper-debug__face-wrap">
-            <div class="epaper-debug__face"></div>
+            <div class="epaper-debug__face">
+              <div class="epaper-debug__eye left"></div>
+              <div class="epaper-debug__eye right"></div>
+              <div class="epaper-debug__mouth"></div>
+            </div>
           </div>
           <div class="epaper-debug__battery">
             <div class="epaper-debug__battery-row">
@@ -1133,8 +1211,9 @@
       const cpu = Math.floor(5 + Math.random() * 60);
       const upHours = Math.floor(1 + Math.random() * 9);
       const upMinutes = Math.floor(Math.random() * 59);
-      const face = status === "RUNNING" ? "(^_^)" : "(^_~)";
-      const faceText = battery <= 20 ? "(T_T)" : face;
+      const mood =
+        status === "DOWN" ? "dead" : battery <= 20 ? "sad" : status === "RUNNING" ? "happy" : "wink";
+      faceEl.className = `epaper-debug__face is-${mood}`;
       const wifiShort = wifiState === "DOWN" ? "DN" : wifiState;
       const upText = `${upHours}:${String(upMinutes).padStart(2, "0")}`;
 
@@ -1142,7 +1221,6 @@
       topWifiEl.textContent = `WIFI ${wifiShort}`;
       topBatEl.textContent = `BAT ${battery}%`;
       topUpEl.textContent = `UP ${upText}`;
-      faceEl.textContent = faceText;
       msgMainEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
       msgSubEl.textContent = `STATE ${status}`;
       batPercentEl.textContent = `${battery}%`;
