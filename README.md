@@ -111,7 +111,7 @@ The ePaper display is not a terminal. It shows:
 - IP address for web access
 - Wi-Fi status (and SSID when available)
 - Battery level (and charge state when available)
-- Uptime, temperature, and load (lightweight health summary)
+- Uptime, temperature, load, CPU, and memory (lightweight health summary)
 - A small status face for quick visual state checks
 
 It does not show logs or TTY output.

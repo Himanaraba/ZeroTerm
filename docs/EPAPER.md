@@ -9,14 +9,15 @@ This display is intentionally limited to a compact system/health overview.
 - IP address (management interface)
 - Wi-Fi state and SSID (if available)
 - Battery percentage (and charge state when available)
-- Uptime, temperature, and load (lightweight health summary)
+- Uptime, temperature, load, CPU, and memory (lightweight health summary)
 - A small status face to mirror the device mood
 
 ## Layout
 
-- Header bar with device name and state.
+- Top bar with IP, Wi-Fi state, battery, and uptime.
 - Left panel with status face and battery bar.
-- Right panel with compact metric cards (IP, Wi-Fi, battery, temp, uptime, load).
+- Right panel with status message and MEM/CPU/TMP metrics.
+- Footer bar with Wi-Fi SSID and load.
 
 ## Requirements (Waveshare 2.13)
 
