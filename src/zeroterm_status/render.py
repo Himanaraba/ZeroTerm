@@ -24,16 +24,22 @@ class RenderConfig:
 
 
 DEFAULT_FONT_CANDIDATES = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-    "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+  "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+  "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+  "/usr/share/fonts/truetype/freefont/FreeMono.ttf",
 ]
+
+_FONT_CACHE: dict[tuple[str | None, int], object] = {}
 
 
 def _load_font(font_path: str | None, font_size: int):
     if ImageFont is None:
         return None
+    cache_key = (font_path, font_size)
+    cached = _FONT_CACHE.get(cache_key)
+    if cached is not None:
+        return cached
     candidates = []
     if font_path:
         candidates.append(font_path)
@@ -42,10 +48,14 @@ def _load_font(font_path: str | None, font_size: int):
     for candidate in candidates:
         try:
             if candidate and Path(candidate).exists():
-                return ImageFont.truetype(candidate, font_size)
+                font = ImageFont.truetype(candidate, font_size)
+                _FONT_CACHE[cache_key] = font
+                return font
         except OSError:
             continue
-    return ImageFont.load_default()
+    font = ImageFont.load_default()
+    _FONT_CACHE[cache_key] = font
+    return font
 
 
 def _text_width(draw, text: str, font) -> int:
