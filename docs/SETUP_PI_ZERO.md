@@ -67,6 +67,32 @@ Quick install (from repo root):
 sudo bash scripts/install_pi_zero.sh
 ```
 
+## Optional: Offline install bundle
+
+Build the bundle on an online Kali machine with the same architecture:
+
+```
+sudo ZEROTERM_OFFLINE_INCLUDE_EPAPER=1 ZEROTERM_OFFLINE_INCLUDE_RTL8821AU=1 \
+  bash scripts/build_offline_bundle.sh
+```
+
+This creates `dist/zeroterm-offline-<timestamp>.tar.gz`. Copy it to the Pi
+over USB, then run:
+
+```
+sudo bash scripts/install_offline_bundle.sh /path/to/zeroterm-offline-*.tar.gz
+```
+
+Optional: include the Waveshare library if it exists locally:
+
+```
+sudo ZEROTERM_OFFLINE_INCLUDE_WAVESHARE=1 bash scripts/build_offline_bundle.sh
+```
+
+Notes:
+- Build on the same distro/arch to match package availability.
+- The RTL8821AU bundle uses the current kernel headers.
+
 ## 6) Optional: RTL8821AU monitor mode
 
 Run the installer + verification script:
