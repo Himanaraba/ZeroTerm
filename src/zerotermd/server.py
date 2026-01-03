@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import signal
 import socket
 import threading
+import time
+from urllib.parse import urlsplit
 
 from .config import Config
 from .http_utils import read_http_request, send_response, serve_static
@@ -54,6 +57,9 @@ def _handle_client(conn: socket.socket, addr: tuple[str, int], config: Config) -
                 return
 
             if _is_websocket_request(request.headers):
+                if not _is_ws_path(request.target):
+                    _send_text(conn, 404, b"Not Found")
+                    return
                 if not _websocket_handshake(conn, request.headers):
                     _send_text(conn, 400, b"Bad Request")
                     return
@@ -83,6 +89,10 @@ def _is_websocket_request(headers: dict[str, str]) -> bool:
     connection = headers.get("connection", "").lower()
     has_upgrade = "upgrade" in connection
     return upgrade and has_upgrade
+
+
+def _is_ws_path(target: str) -> bool:
+    return urlsplit(target).path == "/ws"
 
 
 def _websocket_handshake(conn: socket.socket, headers: dict[str, str]) -> bool:
@@ -159,14 +169,43 @@ def _run_ws_session(conn: socket.socket, config: Config) -> None:
     thread_out.join()
 
     stop_event.set()
+    _cleanup_pty(pid, master_fd)
+
+
+def _cleanup_pty(pid: int, master_fd: int) -> None:
     try:
         os.close(master_fd)
     except OSError:
         pass
+    if pid <= 0:
+        return
+    if _wait_for_child(pid, 0.1):
+        return
+    for sig in (signal.SIGHUP, signal.SIGTERM):
+        try:
+            os.kill(pid, sig)
+        except ProcessLookupError:
+            return
+        if _wait_for_child(pid, 0.5):
+            return
     try:
-        os.waitpid(pid, os.WNOHANG)
-    except ChildProcessError:
-        pass
+        os.kill(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    _wait_for_child(pid, 0.5)
+
+
+def _wait_for_child(pid: int, timeout: float) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            waited, _ = os.waitpid(pid, os.WNOHANG)
+        except ChildProcessError:
+            return True
+        if waited == pid:
+            return True
+        time.sleep(0.05)
+    return False
 
 
 def _handle_text_message(payload: bytes, master_fd: int, pid: int) -> None:
