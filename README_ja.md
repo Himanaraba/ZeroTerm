@@ -35,6 +35,10 @@ ZeroTerm はコマンドを置き換えたり Web 化しません。
 
 ## Quick Start
 - 実機の導入は docs/SETUP_PI_ZERO.md へ。
+- Pi 上でのワンライナー:
+```
+curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/quick_install.sh | sudo bash
+```
 - Windows で UI 確認: `python test\app.py`。
 
 ## Status API & Power Presets
