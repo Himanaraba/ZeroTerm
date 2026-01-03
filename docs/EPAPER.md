@@ -12,6 +12,12 @@ This display is intentionally limited to a compact system/health overview.
 - Uptime, temperature, and load (lightweight health summary)
 - A small status face to mirror the device mood
 
+## Layout
+
+- Header bar with device name and state.
+- Left panel with status face and battery bar.
+- Right panel with compact metric cards (IP, Wi-Fi, battery, temp, uptime, load).
+
 ## Requirements (Waveshare 2.13)
 
 - SPI enabled
