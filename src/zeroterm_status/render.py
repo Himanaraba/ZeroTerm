@@ -391,9 +391,9 @@ def _pick_face(status_text: str, battery_percent: int | None) -> str:
     if status in {"DOWN", "FAILED"}:
         return "(x_x)"
     if battery_percent is not None and battery_percent <= 15:
-        return "(;_;)"
+        return "(T_T)"
     if status == "RUNNING":
-        return "(o_o)"
+        return "(^_^)"
     if status == "READY":
-        return "(-_-)"
-    return "(o_o)"
+        return "(^_~)"
+    return "(^_^)"

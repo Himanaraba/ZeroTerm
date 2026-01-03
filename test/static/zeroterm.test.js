@@ -1133,8 +1133,8 @@
       const cpu = Math.floor(5 + Math.random() * 60);
       const upHours = Math.floor(1 + Math.random() * 9);
       const upMinutes = Math.floor(Math.random() * 59);
-      const face = status === "RUNNING" ? "(o_o)" : "(-_-)";
-      const faceText = battery <= 20 ? "(;_;)" : face;
+      const face = status === "RUNNING" ? "(^_^)" : "(^_~)";
+      const faceText = battery <= 20 ? "(T_T)" : face;
       const wifiShort = wifiState === "DOWN" ? "DN" : wifiState;
       const upText = `${upHours}:${String(upMinutes).padStart(2, "0")}`;
 
