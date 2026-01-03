@@ -22,6 +22,7 @@ cp "${TARGET_DIR}/config/zeroterm.env" /etc/zeroterm/zeroterm.env
 cp "${TARGET_DIR}/systemd/zeroterm.service" /etc/systemd/system/zeroterm.service
 cp "${TARGET_DIR}/systemd/zeroterm-status.service" /etc/systemd/system/zeroterm-status.service
 cp "${TARGET_DIR}/systemd/zeroterm-rtl8821au.service" /etc/systemd/system/zeroterm-rtl8821au.service
+install -m 0755 "${TARGET_DIR}/scripts/zeroterm_power.sh" /usr/local/bin/zeroterm-power
 
 systemctl daemon-reload
 systemctl enable --now zeroterm.service

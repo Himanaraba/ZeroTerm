@@ -14,6 +14,7 @@ class Config:
     cwd: str | None
     log_level: str
     static_dir: Path
+    env_path: Path
     session_log_dir: Path | None
     session_resume: bool
     session_ttl: int
@@ -46,6 +47,7 @@ def _env_bool(name: str, default: bool) -> bool:
 def load_config() -> Config:
     root_dir = Path(__file__).resolve().parents[2]
     static_dir = Path(_env_value("ZEROTERM_STATIC_DIR", str(root_dir / "web"))).resolve()
+    env_path = Path(_env_value("ZEROTERM_ENV_PATH", "/etc/zeroterm/zeroterm.env")).expanduser().resolve()
 
     bind = _env_value("ZEROTERM_BIND", "0.0.0.0")
     port_value = _env_value("ZEROTERM_PORT", "8080")
@@ -77,6 +79,7 @@ def load_config() -> Config:
         cwd=cwd,
         log_level=log_level,
         static_dir=static_dir,
+        env_path=env_path,
         session_log_dir=session_log_dir,
         session_resume=session_resume,
         session_ttl=session_ttl,

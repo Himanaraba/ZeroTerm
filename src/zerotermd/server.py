@@ -4,8 +4,10 @@ import json
 import logging
 import os
 import select
+import shutil
 import signal
 import socket
+import subprocess
 import threading
 import time
 from dataclasses import dataclass
@@ -26,7 +28,6 @@ from .websocket import (
     build_close_frame,
     build_pong_frame,
 )
-
 logger = logging.getLogger(__name__)
 
 
@@ -50,6 +51,12 @@ class StoredSession:
 
 _SESSIONS: dict[str, StoredSession] = {}
 _SESSIONS_LOCK = threading.Lock()
+_ENV_CACHE: dict[str, object] = {
+    "path": None,
+    "mtime": None,
+    "data": {},
+}
+_ENV_CACHE_LOCK = threading.Lock()
 
 
 def run_server(config: Config) -> None:
@@ -77,11 +84,10 @@ def _handle_client(conn: socket.socket, addr: tuple[str, int], config: Config) -
             if request is None:
                 return
 
-            if request.method != "GET":
-                _send_text(conn, 405, b"Method Not Allowed")
-                return
-
             if _is_websocket_request(request.headers):
+                if request.method != "GET":
+                    _send_text(conn, 405, b"Method Not Allowed")
+                    return
                 if not _is_ws_path(request.target):
                     _send_text(conn, 404, b"Not Found")
                     return
@@ -96,6 +102,24 @@ def _handle_client(conn: socket.socket, addr: tuple[str, int], config: Config) -
                     return
                 logger.info("WebSocket connected from %s:%s", addr[0], addr[1])
                 _run_ws_session(conn, config, session_id)
+                return
+
+            if _is_status_path(request.target):
+                if request.method != "GET":
+                    _send_text(conn, 405, b"Method Not Allowed")
+                    return
+                _handle_status_request(conn, config)
+                return
+
+            if _is_power_path(request.target):
+                if request.method != "POST":
+                    _send_text(conn, 405, b"Method Not Allowed")
+                    return
+                _handle_power_request(conn, config, request.body)
+                return
+
+            if request.method != "GET":
+                _send_text(conn, 405, b"Method Not Allowed")
                 return
 
             serve_static(conn, request.target, config.static_dir)
@@ -115,6 +139,20 @@ def _send_text(conn: socket.socket, status: int, body: bytes) -> None:
     )
 
 
+def _send_json(conn: socket.socket, status: int, payload: dict[str, object]) -> None:
+    body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    send_response(
+        conn,
+        status,
+        {
+            "Content-Type": "application/json; charset=utf-8",
+            "Content-Length": str(len(body)),
+            "Cache-Control": "no-store",
+        },
+        body,
+    )
+
+
 def _is_websocket_request(headers: dict[str, str]) -> bool:
     upgrade = headers.get("upgrade", "").lower() == "websocket"
     connection = headers.get("connection", "").lower()
@@ -124,6 +162,14 @@ def _is_websocket_request(headers: dict[str, str]) -> bool:
 
 def _is_ws_path(target: str) -> bool:
     return urlsplit(target).path == "/ws"
+
+
+def _is_status_path(target: str) -> bool:
+    return urlsplit(target).path == "/api/status"
+
+
+def _is_power_path(target: str) -> bool:
+    return urlsplit(target).path == "/api/power"
 
 
 def _extract_session_id(target: str) -> str | None:
@@ -145,6 +191,192 @@ def _sanitize_session_id(value: str | None) -> str | None:
         if not (char.isalnum() or char in {"-", "_"}):
             return None
     return value
+
+
+def _parse_env_text(text: str) -> dict[str, str]:
+    data: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+            value = value[1:-1]
+        if key:
+            data[key] = value
+    return data
+
+
+def _load_env_file(path: Path | None) -> dict[str, str]:
+    if path is None:
+        return {}
+    try:
+        mtime = path.stat().st_mtime
+    except OSError:
+        return {}
+    with _ENV_CACHE_LOCK:
+        cached_path = _ENV_CACHE.get("path")
+        cached_mtime = _ENV_CACHE.get("mtime")
+        cached_data = _ENV_CACHE.get("data")
+        if cached_path == path and cached_mtime == mtime and isinstance(cached_data, dict):
+            return dict(cached_data)
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return {}
+    data = _parse_env_text(text)
+    with _ENV_CACHE_LOCK:
+        _ENV_CACHE["path"] = path
+        _ENV_CACHE["mtime"] = mtime
+        _ENV_CACHE["data"] = dict(data)
+    return data
+
+
+def _update_env_file(path: Path | None, key: str, value: str) -> bool:
+    if path is None:
+        return False
+    try:
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines(keepends=True)
+    except FileNotFoundError:
+        lines = []
+    except OSError:
+        return False
+
+    updated = False
+    new_lines: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("#") or "=" not in stripped:
+            new_lines.append(line)
+            continue
+        candidate = stripped
+        if candidate.startswith("export "):
+            candidate = candidate[7:].lstrip()
+        key_name = candidate.split("=", 1)[0].strip()
+        if key_name != key:
+            new_lines.append(line)
+            continue
+        new_lines.append(f"{key}={value}\n")
+        updated = True
+    if not updated:
+        if new_lines and not new_lines[-1].endswith("\n"):
+            new_lines[-1] = new_lines[-1] + "\n"
+        new_lines.append(f"{key}={value}\n")
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(path.suffix + ".tmp")
+        tmp_path.write_text("".join(new_lines), encoding="utf-8")
+        tmp_path.replace(path)
+    except OSError:
+        return False
+    with _ENV_CACHE_LOCK:
+        _ENV_CACHE["path"] = None
+        _ENV_CACHE["mtime"] = None
+        _ENV_CACHE["data"] = {}
+    return True
+
+
+def _format_power_state(status: str | None) -> str | None:
+    if not status:
+        return None
+    value = status.strip().lower()
+    if "discharg" in value:
+        return "DIS"
+    if "charg" in value:
+        return "CHG"
+    if "full" in value:
+        return "FULL"
+    if "not charging" in value:
+        return "IDLE"
+    if "unknown" in value:
+        return "UNK"
+    return value[:4].upper()
+
+
+def _restart_status_service() -> bool:
+    if shutil.which("systemctl") is None:
+        return False
+    try:
+        result = subprocess.run(
+            ["systemctl", "restart", "zeroterm-status.service"],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0
+
+
+def _read_battery_snapshot(battery_path: str | None, battery_cmd: str | None) -> tuple[int | None, str | None]:
+    try:
+        from zeroterm_status.metrics import read_battery
+    except Exception:
+        return None, None
+    info = read_battery(battery_path, battery_cmd)
+    return info.percent, info.status
+
+
+def _handle_status_request(conn: socket.socket, config: Config) -> None:
+    env_data = _load_env_file(config.env_path)
+    battery_path = env_data.get("ZEROTERM_BATTERY_PATH") or os.environ.get("ZEROTERM_BATTERY_PATH")
+    battery_cmd = env_data.get("ZEROTERM_BATTERY_CMD") or os.environ.get("ZEROTERM_BATTERY_CMD")
+    profile = env_data.get("ZEROTERM_STATUS_PROFILE") or os.environ.get("ZEROTERM_STATUS_PROFILE")
+
+    battery_percent, battery_status = _read_battery_snapshot(battery_path, battery_cmd)
+    power_state = _format_power_state(battery_status)
+    payload = {
+        "battery_percent": battery_percent,
+        "battery_status": battery_status,
+        "power_state": power_state,
+        "profile": profile or None,
+        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    _send_json(conn, 200, payload)
+
+
+def _normalize_profile(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip().lower()
+    if normalized in {"default", "none", "off"}:
+        return ""
+    if normalized in {"eco", "balanced", "performance"}:
+        return normalized
+    return None
+
+
+def _handle_power_request(conn: socket.socket, config: Config, body: bytes) -> None:
+    try:
+        payload = json.loads(body.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        _send_json(conn, 400, {"ok": False, "error": "invalid json"})
+        return
+    profile = _normalize_profile(payload.get("profile") if isinstance(payload, dict) else None)
+    if profile is None:
+        _send_json(conn, 400, {"ok": False, "error": "invalid profile"})
+        return
+    if not _update_env_file(config.env_path, "ZEROTERM_STATUS_PROFILE", profile):
+        _send_json(conn, 500, {"ok": False, "error": "failed to update env"})
+        return
+    restarted = _restart_status_service()
+    _send_json(
+        conn,
+        200,
+        {
+            "ok": True,
+            "profile": profile or None,
+            "restarted": restarted,
+        },
+    )
 
 
 def _websocket_handshake(conn: socket.socket, headers: dict[str, str]) -> bool:

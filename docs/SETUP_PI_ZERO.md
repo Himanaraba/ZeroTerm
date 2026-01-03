@@ -155,6 +155,15 @@ sudo systemctl enable --now zeroterm-status.service
 - Connect the iPad to the Pi management Wi-Fi network.
 - Open `http://<pi-ip>:<port>/` in Safari.
 
+## Web UI telemetry
+- Header shows BAT/PWR/MODE from the Pi battery status.
+- Use the preset buttons or run:
+```
+sudo zeroterm-power eco
+sudo zeroterm-power balanced
+sudo zeroterm-power performance
+```
+
 ## Notes
 - Built-in Wi-Fi is for management/web access.
 - Use an external USB Wi-Fi adapter for monitoring or experiments.
@@ -232,6 +241,8 @@ Core:
   Optional working directory for the shell. Empty means the user home.
 - ZEROTERM_LOG_LEVEL (default: info)
   Logging verbosity (debug, info, warning, error).
+- ZEROTERM_ENV_PATH (default: /etc/zeroterm/zeroterm.env)
+  Environment file path used for power preset updates.
 - ZEROTERM_STATIC_DIR (default: /opt/zeroterm/web)
   Directory that serves static assets for the web client.
 - ZEROTERM_SESSION_LOG_DIR (default: empty)

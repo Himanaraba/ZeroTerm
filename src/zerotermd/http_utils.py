@@ -32,9 +32,14 @@ class HttpRequest:
     target: str
     version: str
     headers: dict[str, str]
+    body: bytes
 
 
-def read_http_request(conn, max_bytes: int = 65536) -> HttpRequest | None:
+def read_http_request(
+    conn,
+    max_bytes: int = 65536,
+    max_body_bytes: int = 65536,
+) -> HttpRequest | None:
     data = bytearray()
     while b"\r\n\r\n" not in data:
         chunk = conn.recv(4096)
@@ -44,7 +49,7 @@ def read_http_request(conn, max_bytes: int = 65536) -> HttpRequest | None:
         if len(data) > max_bytes:
             return None
 
-    header_bytes = bytes(data).split(b"\r\n\r\n", 1)[0]
+    header_bytes, rest = bytes(data).split(b"\r\n\r\n", 1)
     try:
         header_text = header_bytes.decode("iso-8859-1")
         lines = header_text.split("\r\n")
@@ -59,7 +64,21 @@ def read_http_request(conn, max_bytes: int = 65536) -> HttpRequest | None:
         name, value = line.split(":", 1)
         headers[name.strip().lower()] = value.strip()
 
-    return HttpRequest(method=method, target=target, version=version, headers=headers)
+    body = rest
+    content_length = headers.get("content-length")
+    if content_length:
+        try:
+            length = int(content_length)
+        except ValueError:
+            length = 0
+        if length > max_body_bytes:
+            return None
+        while len(body) < length:
+            chunk = conn.recv(min(4096, length - len(body)))
+            if not chunk:
+                break
+            body += chunk
+    return HttpRequest(method=method, target=target, version=version, headers=headers, body=body)
 
 
 def send_response(conn, status: int, headers: dict[str, str] | None, body: bytes) -> None:
