@@ -136,6 +136,7 @@ Displayed items:
 - System state (READY / RUNNING / DOWN)
 - IP address (management interface)
 - Wi-Fi state and SSID (if available)
+- External Wi-Fi adapter (if detected)
 - Battery percentage (and charge state when available)
 - Uptime, temperature, load, CPU, and memory (lightweight health summary)
 - A small status face to mirror the device mood
@@ -198,14 +199,32 @@ Core:
   Logging verbosity (debug, info, warning, error).
 - ZEROTERM_STATIC_DIR (default: /opt/zeroterm/web)
   Directory that serves static assets for the web client.
+- ZEROTERM_SESSION_LOG_DIR (default: empty)
+  Optional directory for PTY session logs.
+- ZEROTERM_SESSION_RESUME (default: 1)
+  Reuse PTY sessions across WebSocket reconnects.
+- ZEROTERM_SESSION_TTL (default: 60)
+  Seconds to keep a detached PTY session alive.
 
 Status / e-Paper:
 - ZEROTERM_STATUS_INTERVAL (default: 30)
   Refresh interval in seconds for the e-Paper status display.
 - ZEROTERM_STATUS_IFACE (default: wlan0)
   Network interface to display IP/Wi-Fi status from.
+- ZEROTERM_STATUS_IFACE_AUTO (default: 0)
+  Auto-select a wlan interface when the preferred one is missing.
 - ZEROTERM_STATUS_SERVICE (default: zeroterm.service)
   systemd service name used to decide READY/RUNNING state.
+- ZEROTERM_STATUS_NIGHT_START (default: 22)
+  Night schedule start hour (0-23).
+- ZEROTERM_STATUS_NIGHT_END (default: 6)
+  Night schedule end hour (0-23).
+- ZEROTERM_STATUS_NIGHT_INTERVAL (default: 0)
+  If set, uses a slower update interval at night.
+- ZEROTERM_STATUS_LOW_BATTERY (default: 0)
+  Battery percent threshold for low-power updates.
+- ZEROTERM_STATUS_LOW_BATTERY_INTERVAL (default: 0)
+  If set, uses a slower update interval when below the threshold.
 - ZEROTERM_EPAPER_DRIVER (default: waveshare)
   Display backend: waveshare, file, or null.
 - ZEROTERM_EPAPER_MODEL (default: epd2in13_V3)
