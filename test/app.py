@@ -35,11 +35,18 @@ def js() -> Response:
 @app.get("/api/status")
 def status() -> Response:
     battery = random.randint(35, 98)
-    state = random.choice(["CHG", "DIS", "FULL", "IDLE"])
+    power_state = random.choice(["CHG", "DIS", "FULL", "IDLE"])
+    status_map = {
+        "CHG": "Charging",
+        "DIS": "Discharging",
+        "FULL": "Full",
+        "IDLE": "Not charging",
+    }
+    battery_status = status_map.get(power_state)
     payload = {
         "battery_percent": battery,
-        "battery_status": state,
-        "power_state": state,
+        "battery_status": battery_status,
+        "power_state": power_state,
         "profile": app.config.get("TEST_PROFILE"),
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
@@ -50,6 +57,9 @@ def status() -> Response:
 def power() -> Response:
     payload = request.get_json(silent=True) or {}
     profile = str(payload.get("profile", "")).strip().lower()
+    if profile in {"default", "none", "off", ""}:
+        app.config["TEST_PROFILE"] = None
+        return jsonify({"ok": True, "profile": None, "restarted": False})
     if profile not in {"eco", "balanced", "performance"}:
         return jsonify({"ok": False, "error": "invalid profile"}), 400
     app.config["TEST_PROFILE"] = profile

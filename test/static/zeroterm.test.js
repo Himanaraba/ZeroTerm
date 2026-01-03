@@ -1048,9 +1048,63 @@
   }
 
   const view = new TerminalView(termTextEl, cursorEl);
-  const promptText = "zeroterm@pi:~$ ";
+  const hostName = "pi";
+  const userName = "kali";
+  const homeDir = "/home/kali";
+  let currentDir = homeDir;
+  let previousDir = homeDir;
   let currentLine = "";
   let lastInputAt = Date.now();
+  let forcedState = null;
+  let progressTimer = null;
+
+  const telemetryState = {
+    battery_percent: null,
+    battery_status: null,
+    power_state: null,
+    profile: null,
+  };
+
+  const mockBootAt = Date.now() - Math.floor(Math.random() * 6 * 60 * 60 * 1000);
+  const mockNetwork = {
+    ip: `192.168.0.${Math.floor(20 + Math.random() * 180)}`,
+    wifiState: "UP",
+    ssid: "KALI-NET",
+    extIface: "wlan1",
+  };
+  const mockFs = {
+    "/": ["home", "opt", "etc", "var", "boot", "dev", "proc", "sys"],
+    "/home": ["kali"],
+    "/home/kali": ["zeroterm", "notes.txt", ".bashrc", ".ssh"],
+    "/home/kali/zeroterm": ["README.md", "docs", "src", "web", "systemd", "scripts"],
+    "/opt": ["zeroterm"],
+    "/opt/zeroterm": ["config", "docs", "scripts", "src", "systemd", "web"],
+    "/etc": ["zeroterm", "os-release", "hostname"],
+    "/etc/zeroterm": ["zeroterm.env"],
+    "/var": ["log", "lib"],
+    "/var/log": ["syslog", "zeroterm"],
+    "/var/log/zeroterm": ["power-events.log", "battery.csv"],
+    "/var/lib": ["zeroterm"],
+    "/var/lib/zeroterm": ["epaper.png", "rtl8821au.status"],
+  };
+  const mockFiles = {
+    "/etc/hostname": `${hostName}\n`,
+    "/etc/os-release": [
+      "PRETTY_NAME=\"Kali GNU/Linux\"",
+      "NAME=\"Kali GNU/Linux\"",
+      "VERSION=\"2025.1\"",
+      "ID=kali",
+      "HOME_URL=\"https://www.kali.org/\"",
+    ].join("\n"),
+    "/etc/zeroterm/zeroterm.env": [
+      "ZEROTERM_BIND=0.0.0.0",
+      "ZEROTERM_PORT=8080",
+      "ZEROTERM_STATUS_PROFILE=balanced",
+    ].join("\n"),
+    "/var/log/zeroterm/power-events.log": "2025-01-03T01:12:03Z STATE DIS 76\n",
+    "/var/log/zeroterm/battery.csv": "timestamp,percent,status\n2025-01-03T01:00:00Z,82,Discharging\n",
+    "/var/lib/zeroterm/rtl8821au.status": "RTL8821AU: OK (monitor mode enabled)\n",
+  };
 
   const setStatus = (text, tone) => {
     statusEl.textContent = text;
@@ -1076,19 +1130,25 @@
       return;
     }
     if ("battery_percent" in payload) {
+      telemetryState.battery_percent = payload.battery_percent;
       const batteryPercent =
         typeof payload.battery_percent === "number" ? `${payload.battery_percent}%` : "--";
       if (batteryEl) {
         batteryEl.textContent = batteryPercent;
       }
     }
+    if ("battery_status" in payload) {
+      telemetryState.battery_status = payload.battery_status;
+    }
     if ("power_state" in payload) {
+      telemetryState.power_state = payload.power_state;
       const powerState = payload.power_state || "--";
       if (powerEl) {
         powerEl.textContent = powerState;
       }
     }
     if ("profile" in payload) {
+      telemetryState.profile = payload.profile;
       const profile = payload.profile ? payload.profile.toUpperCase() : "--";
       if (profileEl) {
         profileEl.textContent = profile;
@@ -1154,12 +1214,198 @@
     right: "\x1b[C",
   };
 
+  const writeLine = (text = "") => {
+    writeText(`\r\n${text}`);
+  };
+
+  const toCrlf = (text) => text.replace(/\r?\n/g, "\r\n");
+
+  const writeBlock = (text) => {
+    writeText(`\r\n${toCrlf(text)}`);
+  };
+
+  const formatPrompt = () => {
+    let shortDir = currentDir;
+    if (currentDir === homeDir) {
+      shortDir = "~";
+    } else if (currentDir.startsWith(`${homeDir}/`)) {
+      shortDir = `~${currentDir.slice(homeDir.length)}`;
+    }
+    return `${userName}@${hostName}:${shortDir}$ `;
+  };
+
+  const normalizePath = (path) => {
+    if (!path) {
+      return "/";
+    }
+    const isAbs = path.startsWith("/");
+    const parts = [];
+    for (const piece of path.split("/")) {
+      if (!piece || piece === ".") {
+        continue;
+      }
+      if (piece === "..") {
+        parts.pop();
+        continue;
+      }
+      parts.push(piece);
+    }
+    const normalized = `${isAbs ? "/" : ""}${parts.join("/")}`;
+    return normalized || "/";
+  };
+
+  const resolvePath = (input) => {
+    if (!input || input === "~") {
+      return homeDir;
+    }
+    let target = input;
+    if (input.startsWith("~/")) {
+      target = `${homeDir}${input.slice(1)}`;
+    } else if (!input.startsWith("/")) {
+      target = `${currentDir}/${input}`;
+    }
+    return normalizePath(target);
+  };
+
+  const isDir = (path) => Object.prototype.hasOwnProperty.call(mockFs, path);
+
+  const getDirEntries = (path, showAll) => {
+    const entries = mockFs[path] || [];
+    if (showAll) {
+      return entries.slice();
+    }
+    return entries.filter((name) => !name.startsWith("."));
+  };
+
+  const formatLs = (path, showAll, longFormat) => {
+    if (!isDir(path)) {
+      return `ls: cannot access '${path}': No such file or directory`;
+    }
+    const entries = getDirEntries(path, showAll);
+    if (!longFormat) {
+      return entries.join("  ");
+    }
+    const now = new Date();
+    const stamp = `${now.toLocaleString("en-US", { month: "short" })} ${String(now.getDate()).padStart(2, " ")} ${String(
+      now.getHours()
+    ).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    return entries
+      .map((name) => {
+        const fullPath = path === "/" ? `/${name}` : `${path}/${name}`;
+        const isDirectory = isDir(fullPath);
+        const mode = isDirectory ? "drwxr-xr-x" : "-rw-r--r--";
+        const size = isDirectory ? 4096 : 512;
+        return `${mode} 1 ${userName} ${userName} ${String(size).padStart(5, " ")} ${stamp} ${name}`;
+      })
+      .join("\r\n");
+  };
+
+  const formatUptime = () => {
+    const elapsed = Math.max(0, Date.now() - mockBootAt);
+    const totalMinutes = Math.floor(elapsed / 60000);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (hours > 0) {
+      return `${hours}h${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  const formatDate = () => new Date().toString();
+
+  const statusMessage = (status) => {
+    const upper = status.toUpperCase();
+    if (upper === "RUNNING") {
+      return "SESSION LIVE";
+    }
+    if (upper === "DOWN" || upper === "FAILED") {
+      return "SERVICE DOWN";
+    }
+    if (upper === "READY") {
+      return "WAITING FOR INPUT";
+    }
+    return "STATUS UNKNOWN";
+  };
+
+  const shortWifiState = (state) => {
+    if (!state) {
+      return "UNK";
+    }
+    const upper = state.toUpperCase();
+    const mapping = {
+      UP: "UP",
+      DOWN: "DN",
+      UNKNOWN: "UNK",
+      MISSING: "MISS",
+      DORMANT: "DORM",
+      LOWERLAYERDOWN: "LLDN",
+    };
+    return mapping[upper] || upper.slice(0, 4);
+  };
+
+  const batteryShort = (percent, batteryStatus, powerState) => {
+    if (typeof percent !== "number") {
+      return "--";
+    }
+    const status = (batteryStatus || powerState || "").toString().toUpperCase();
+    let suffix = "";
+    if (status.includes("CHARG")) {
+      suffix = "C";
+    } else if (status.includes("FULL")) {
+      suffix = "F";
+    }
+    return `${percent}%${suffix}`;
+  };
+
+  const pickFace = (status, batteryPercent) => {
+    const upper = status.toUpperCase();
+    if (upper === "DOWN" || upper === "FAILED") {
+      return "(x_x)";
+    }
+    if (typeof batteryPercent === "number" && batteryPercent <= 15) {
+      return "(T_T)";
+    }
+    if (upper === "RUNNING") {
+      return "(^_^)";
+    }
+    if (upper === "READY") {
+      return "(^_~)";
+    }
+    return "(^_^)";
+  };
+
   const printPrompt = (lineBreak) => {
     if (lineBreak) {
       writeText("\r\n");
     }
-    writeText(promptText);
+    writeText(formatPrompt());
     currentLine = "";
+  };
+
+  const runProgressDemo = () => {
+    if (progressTimer) {
+      clearInterval(progressTimer);
+    }
+    let percent = 0;
+    const renderBar = (value) => {
+      const total = 20;
+      const filled = Math.round((value / 100) * total);
+      return `${"#".repeat(filled)}${"-".repeat(total - filled)}`;
+    };
+    writeLine(`Progress: ${percent}% [${renderBar(percent)}]`);
+    progressTimer = setInterval(() => {
+      percent += 5;
+      if (percent > 100) {
+        percent = 100;
+      }
+      writeText(`\r\x1b[KProgress: ${percent}% [${renderBar(percent)}]`);
+      if (percent >= 100) {
+        clearInterval(progressTimer);
+        progressTimer = null;
+        writeLine("Done.");
+        printPrompt(true);
+      }
+    }, 120);
   };
 
   const handleCommand = (line) => {
@@ -1168,23 +1414,285 @@
       printPrompt(true);
       return;
     }
-    if (trimmed === "clear") {
+    const tokens = trimmed.match(/\S+/g) || [];
+    const command = tokens[0].toLowerCase();
+    const args = tokens.slice(1);
+
+    if (command === "clear") {
       writeText("\x1b[2J\x1b[H");
       writeText("ZeroTerm TEST MODE\r\nType 'help' for mock commands.");
       printPrompt(true);
       return;
     }
-    if (trimmed === "help") {
-      writeText("\r\nMock commands: help, clear, exit");
+    if (command === "help") {
+      writeBlock(
+        [
+          "Mock commands:",
+          "  help, clear, exit",
+          "  pwd, cd, ls, cat, echo",
+          "  date, uptime, whoami, uname",
+          "  ip, ifconfig, iwconfig, wifi",
+          "  status, battery, power",
+          "  demo colors|progress",
+          "  state auto|running|ready|down|failed",
+        ].join("\n")
+      );
       printPrompt(true);
       return;
     }
-    if (trimmed === "exit") {
-      writeText("\r\nSession closed (test mode). Restart the page to continue.");
+    if (command === "exit") {
+      writeLine("Session closed (test mode). Restart the page to continue.");
       printPrompt(true);
       return;
     }
-    writeText(`\r\n[TEST MODE] Command not executed: ${line}`);
+    if (command === "pwd") {
+      writeLine(currentDir);
+      printPrompt(true);
+      return;
+    }
+    if (command === "cd") {
+      const targetArg = args[0] || "~";
+      if (targetArg === "-") {
+        const swap = currentDir;
+        currentDir = previousDir;
+        previousDir = swap;
+        writeLine(currentDir);
+        printPrompt(true);
+        return;
+      }
+      const resolved = resolvePath(targetArg);
+      if (!isDir(resolved)) {
+        writeLine(`cd: no such file or directory: ${targetArg}`);
+        printPrompt(true);
+        return;
+      }
+      previousDir = currentDir;
+      currentDir = resolved;
+      printPrompt(true);
+      return;
+    }
+    if (command === "ls") {
+      let showAll = false;
+      let longFormat = false;
+      const paths = [];
+      for (const arg of args) {
+        if (arg.startsWith("-")) {
+          showAll = showAll || arg.includes("a");
+          longFormat = longFormat || arg.includes("l");
+        } else {
+          paths.push(arg);
+        }
+      }
+      if (paths.length === 0) {
+        writeBlock(formatLs(currentDir, showAll, longFormat));
+        printPrompt(true);
+        return;
+      }
+      const outputs = [];
+      for (const path of paths) {
+        const resolved = resolvePath(path);
+        const header = paths.length > 1 ? `${path}:` : "";
+        if (header) {
+          outputs.push(header);
+        }
+        outputs.push(formatLs(resolved, showAll, longFormat));
+        if (paths.length > 1) {
+          outputs.push("");
+        }
+      }
+      writeBlock(outputs.join("\n"));
+      printPrompt(true);
+      return;
+    }
+    if (command === "cat") {
+      if (args.length === 0) {
+        writeLine("cat: missing file operand");
+        printPrompt(true);
+        return;
+      }
+      const outputs = [];
+      for (const path of args) {
+        const resolved = resolvePath(path);
+        if (isDir(resolved)) {
+          outputs.push(`cat: ${path}: Is a directory`);
+          continue;
+        }
+        const content = mockFiles[resolved];
+        if (typeof content === "string") {
+          outputs.push(content);
+        } else {
+          outputs.push(`cat: ${path}: No such file or directory`);
+        }
+      }
+      writeBlock(outputs.join("\n"));
+      printPrompt(true);
+      return;
+    }
+    if (command === "echo") {
+      writeLine(args.join(" "));
+      printPrompt(true);
+      return;
+    }
+    if (command === "date") {
+      writeLine(formatDate());
+      printPrompt(true);
+      return;
+    }
+    if (command === "uptime") {
+      writeLine(`up ${formatUptime()}, load average: 0.18, 0.22, 0.25`);
+      printPrompt(true);
+      return;
+    }
+    if (command === "whoami") {
+      writeLine(userName);
+      printPrompt(true);
+      return;
+    }
+    if (command === "uname") {
+      if (args.includes("-a")) {
+        writeLine("Linux pi 6.1.0-kali-armv7l #1 SMP PREEMPT armv7l GNU/Linux");
+      } else if (args.includes("-r")) {
+        writeLine("6.1.0-kali-armv7l");
+      } else {
+        writeLine("Linux");
+      }
+      printPrompt(true);
+      return;
+    }
+    if (command === "ip") {
+      writeBlock(
+        [
+          "2: wlan0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500",
+          `    inet ${mockNetwork.ip}/24 brd 192.168.0.255 scope global wlan0`,
+          "       valid_lft forever preferred_lft forever",
+        ].join("\n")
+      );
+      printPrompt(true);
+      return;
+    }
+    if (command === "ifconfig") {
+      writeBlock(
+        [
+          "wlan0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500",
+          `        inet ${mockNetwork.ip}  netmask 255.255.255.0  broadcast 192.168.0.255`,
+          "        RX packets 120  TX packets 95",
+        ].join("\n")
+      );
+      printPrompt(true);
+      return;
+    }
+    if (command === "iwconfig") {
+      writeBlock(
+        [
+          `wlan0  IEEE 802.11  ESSID:\"${mockNetwork.ssid}\"`,
+          "      Mode:Managed  Frequency:2.437 GHz  Access Point: 00:11:22:33:44:55",
+          "      Link Quality=70/70  Signal level=-39 dBm",
+        ].join("\n")
+      );
+      printPrompt(true);
+      return;
+    }
+    if (command === "wifi") {
+      writeLine(`WIFI ${mockNetwork.wifiState} ${mockNetwork.ssid}`);
+      printPrompt(true);
+      return;
+    }
+    if (command === "battery") {
+      const percent =
+        typeof telemetryState.battery_percent === "number" ? `${telemetryState.battery_percent}%` : "--";
+      const powerState = telemetryState.power_state || "--";
+      const batteryStatus = telemetryState.battery_status || "--";
+      writeLine(`BAT ${percent} ${batteryStatus} PWR ${powerState}`);
+      printPrompt(true);
+      return;
+    }
+    if (command === "power") {
+      if (args.length === 0) {
+        writeLine(`Power profile: ${telemetryState.profile || "default"}`);
+        printPrompt(true);
+        return;
+      }
+      const profile = args[0].toLowerCase();
+      if (!["eco", "balanced", "performance", "default"].includes(profile)) {
+        writeLine("Usage: power <eco|balanced|performance|default>");
+        printPrompt(true);
+        return;
+      }
+      writeLine(`Applying power profile: ${profile}`);
+      const payloadProfile = profile === "default" ? "default" : profile;
+      postPowerProfile(payloadProfile).then(() => {
+        writeLine(`Power profile: ${telemetryState.profile || payloadProfile}`);
+        printPrompt(true);
+      });
+      return;
+    }
+    if (command === "status") {
+      writeLine("Fetching /api/status...");
+      fetch("/api/status", { cache: "no-store" })
+        .then((response) => {
+          if (!response.ok) {
+            throw new Error("status fetch failed");
+          }
+          return response.json();
+        })
+        .then((payload) => {
+          updateTelemetry(payload);
+          writeBlock(JSON.stringify(payload, null, 2));
+          printPrompt(true);
+        })
+        .catch(() => {
+          writeLine("status: unable to fetch /api/status");
+          printPrompt(true);
+        });
+      return;
+    }
+    if (command === "demo") {
+      const mode = (args[0] || "").toLowerCase();
+      if (mode === "colors") {
+        writeBlock(
+          [
+            "\u001b[31m[!] red warning\u001b[0m",
+            "\u001b[32m[+] green ok\u001b[0m",
+            "\u001b[33m[*] yellow info\u001b[0m",
+            "\u001b[34m[i] blue note\u001b[0m",
+            "\u001b[35m[@] magenta\u001b[0m",
+            "\u001b[36m[#] cyan\u001b[0m",
+            "\u001b[1mBold text\u001b[22m normal",
+            "\u001b[7mInverse sample\u001b[27m",
+          ].join("\n")
+        );
+        printPrompt(true);
+        return;
+      }
+      if (mode === "progress") {
+        runProgressDemo();
+        return;
+      }
+      writeLine("Usage: demo colors|progress");
+      printPrompt(true);
+      return;
+    }
+    if (command === "state") {
+      const mode = (args[0] || "").toLowerCase();
+      if (!mode || mode === "auto") {
+        forcedState = null;
+        writeLine("State: auto");
+        printPrompt(true);
+        return;
+      }
+      const normalized = mode.toUpperCase();
+      if (["RUNNING", "READY", "DOWN", "FAILED"].includes(normalized)) {
+        forcedState = normalized;
+        writeLine(`State: ${normalized}`);
+        printPrompt(true);
+        return;
+      }
+      writeLine("Usage: state auto|running|ready|down|failed");
+      printPrompt(true);
+      return;
+    }
+
+    writeLine(`[TEST MODE] Command not executed: ${line}`);
     printPrompt(true);
   };
 
@@ -1580,15 +2088,22 @@
 
     const render = () => {
       const host = location.hostname;
-      const ip = /\d+\.\d+\.\d+\.\d+/.test(host)
-        ? host
-        : `192.168.0.${Math.floor(20 + Math.random() * 180)}`;
-      const status = Date.now() - lastInputAt < 20000 ? "RUNNING" : "READY";
-      const wifiState = navigator.onLine ? "UP" : "DOWN";
-      const ssid = ssids[Math.floor(Math.random() * ssids.length)];
-      const extIface = Math.random() > 0.6 ? "wlan1" : null;
-      const battery = Math.floor(40 + Math.random() * 55);
-      const powerState = battery < 20 ? "LOW" : Math.random() > 0.5 ? "CHG" : "DIS";
+      const ip = /\d+\.\d+\.\d+\.\d+/.test(host) ? host : mockNetwork.ip;
+      const autoState = Date.now() - lastInputAt < 20000 ? "RUNNING" : "READY";
+      const status = forcedState || autoState;
+      const wifiState = navigator.onLine ? mockNetwork.wifiState : "DOWN";
+      if (Math.random() > 0.85) {
+        mockNetwork.ssid = ssids[Math.floor(Math.random() * ssids.length)];
+      }
+      const ssid = mockNetwork.ssid;
+      const extIface = mockNetwork.extIface;
+      const battery =
+        typeof telemetryState.battery_percent === "number"
+          ? telemetryState.battery_percent
+          : Math.floor(40 + Math.random() * 55);
+      const powerState =
+        telemetryState.power_state || (battery < 20 ? "DIS" : Math.random() > 0.5 ? "CHG" : "DIS");
+      const batteryStatus = telemetryState.battery_status;
       const alertFlags = [];
       if (Math.random() > 0.9) {
         alertFlags.push("TIME");
@@ -1596,40 +2111,38 @@
       if (Math.random() > 0.92) {
         alertFlags.push("UPD");
       }
+      if (typeof battery === "number" && battery <= 20) {
+        alertFlags.push("LOW");
+      }
       const load = (Math.random() * 0.9 + 0.1).toFixed(2);
       const temp = Math.floor(36 + Math.random() * 10);
       const mem = Math.floor(30 + Math.random() * 50);
       const cpu = Math.floor(5 + Math.random() * 60);
-      const upHours = Math.floor(1 + Math.random() * 9);
-      const upMinutes = Math.floor(Math.random() * 59);
-      const faceText =
-        status === "DOWN"
-          ? "(x_x)"
-          : battery <= 20
-            ? "(T_T)"
-            : status === "RUNNING"
-              ? "(^_^)"
-              : "(^_~)";
-      const wifiShort = wifiState === "DOWN" ? "DN" : wifiState;
+      const uptimeMinutes = Math.max(0, Math.floor((Date.now() - mockBootAt) / 60000));
+      const upHours = Math.floor(uptimeMinutes / 60);
+      const upMinutes = uptimeMinutes % 60;
+      const faceText = pickFace(status, battery);
+      const wifiShort = shortWifiState(wifiState);
+      const batteryShortText = batteryShort(battery, batteryStatus, powerState);
       const upText = `${upHours}:${String(upMinutes).padStart(2, "0")}`;
 
       topIpEl.textContent = `IP ${ip}`;
       topWifiEl.textContent = `WIFI ${wifiShort}`;
-      topBatEl.textContent = `BAT ${battery}%`;
+      topBatEl.textContent = `BAT ${batteryShortText}`;
       topUpEl.textContent = `UP ${upText}`;
       faceTextEl.textContent = faceText;
-      statusLineEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
+      statusLineEl.textContent = statusMessage(status);
       msgMainEl.textContent = `STATE ${status}`;
       msgSubEl.textContent = `SSID ${ssid}`;
       msgExtEl.textContent = extIface ? `EXT ${extIface.toUpperCase()}` : "";
-      msgPowerEl.textContent = `PWR ${powerState}`;
+      msgPowerEl.textContent = `PWR ${powerState || "--"}`;
       msgAlertEl.textContent = alertFlags.length ? `ALRT ${alertFlags.join(" ")}` : "";
       batPercentEl.textContent = `${battery}%`;
       batFillEl.style.width = `${battery}%`;
       memEl.textContent = `${mem}%`;
       cpuEl.textContent = `${cpu}%`;
       tempEl.textContent = `${temp}C`;
-      footerLeftEl.textContent = `WIFI ${ssid}`;
+      footerLeftEl.textContent = `WIFI ${ssid || wifiShort}`;
       footerRightEl.textContent = `LOAD ${load}`;
     };
 

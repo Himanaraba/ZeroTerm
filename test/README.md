@@ -31,3 +31,19 @@ http://127.0.0.1:8081/
 - Uses Flask only for local preview and is not part of the Pi runtime.
 - Change host/port with ZEROTERM_TEST_HOST / ZEROTERM_TEST_PORT.
 - A debug e-Paper preview is shown in the lower-right corner.
+
+## Mock commands
+
+```
+help, clear, exit
+pwd, cd, ls, cat, echo
+date, uptime, whoami, uname
+ip, ifconfig, iwconfig, wifi
+status, battery, power
+demo colors|progress
+state auto|running|ready|down|failed
+```
+
+Notes:
+- `status` prints the JSON payload from `/api/status`.
+- `power` calls `/api/power` and updates the header telemetry.
