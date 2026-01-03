@@ -1,7 +1,7 @@
 # Setup: Raspberry Pi Zero 2 W (Kali Lite)
 
 This guide assumes a headless Kali Linux Lite image on Raspberry Pi Zero 2 W
-and systemd as the init system.
+and systemd as the init system. All steps are manual on the device.
 
 ## 1) Flash the OS
 - Download the Kali Linux ARM image for Raspberry Pi Zero 2 W.
@@ -95,7 +95,7 @@ ZeroTerm assumes a full-power shell. Running as root preserves unrestricted
 command access (default). If you choose a dedicated user, some commands will
 be unavailable and that conflicts with the project goals.
 
-## 8) Configure
+## 8) Configure environment
 ```
 sudo mkdir -p /etc/zeroterm
 sudo cp /opt/zeroterm/config/zeroterm.env /etc/zeroterm/zeroterm.env
@@ -125,4 +125,118 @@ sudo systemctl enable --now zeroterm-status.service
 ## Notes
 - Built-in Wi-Fi is for management/web access.
 - Use an external USB Wi-Fi adapter for monitoring or experiments.
-- The web UI is a terminal cable. No GUI or command restrictions are added.
+- The web UI is intentionally minimal and uses no frontend framework.
+- No command filtering or sandboxing is applied.
+- The systemd unit runs as root by default to avoid command restrictions.
+- Use network-level controls if you need access restrictions.
+
+## Optional: e-Paper status display
+
+Displayed items:
+- System state (READY / RUNNING / DOWN)
+- IP address (management interface)
+- Wi-Fi state and SSID (if available)
+- Battery percentage (and charge state when available)
+- Uptime, temperature, load, CPU, and memory (lightweight health summary)
+- A small status face to mirror the device mood
+
+Layout:
+- Top bar with IP, Wi-Fi state, battery, and uptime.
+- Left panel with status face and battery bar.
+- Right panel with status message and MEM/CPU/TMP metrics.
+- Footer bar with Wi-Fi SSID and load.
+
+Requirements (Waveshare 2.13):
+- SPI enabled
+- Python packages: python3-pil, python3-spidev, python3-rpi.gpio
+- waveshare_epd library available in PYTHONPATH
+
+Battery sources can be configured via:
+```
+ZEROTERM_BATTERY_CMD=pisugar-power -c
+ZEROTERM_BATTERY_PATH=/sys/class/power_supply
+```
+
+Test output without hardware:
+
+```
+ZEROTERM_EPAPER_DRIVER=file
+ZEROTERM_EPAPER_OUTPUT=/var/lib/zeroterm/epaper.png
+```
+
+Quick checks (no hardware):
+
+1) Install Pillow (if missing):
+```
+python3 -m pip install Pillow
+```
+
+2) Render a sample PNG:
+```
+python3 scripts/render_status_sample.py --output /tmp/zeroterm_epaper.png
+```
+
+3) Render with live metrics (optional):
+```
+python3 scripts/render_status_sample.py --live
+```
+
+## Configuration reference
+
+Core:
+- ZEROTERM_BIND (default: 0.0.0.0)
+  Address to bind the HTTP/WebSocket server.
+- ZEROTERM_PORT (default: 8080)
+  Port for the HTTP/WebSocket server.
+- ZEROTERM_SHELL (default: /bin/bash)
+  Shell to launch inside the PTY.
+- ZEROTERM_TERM (default: linux)
+  TERM value exported to the shell session.
+- ZEROTERM_CWD (default: empty)
+  Optional working directory for the shell. Empty means the user home.
+- ZEROTERM_LOG_LEVEL (default: info)
+  Logging verbosity (debug, info, warning, error).
+- ZEROTERM_STATIC_DIR (default: /opt/zeroterm/web)
+  Directory that serves static assets for the web client.
+
+Status / e-Paper:
+- ZEROTERM_STATUS_INTERVAL (default: 30)
+  Refresh interval in seconds for the e-Paper status display.
+- ZEROTERM_STATUS_IFACE (default: wlan0)
+  Network interface to display IP/Wi-Fi status from.
+- ZEROTERM_STATUS_SERVICE (default: zeroterm.service)
+  systemd service name used to decide READY/RUNNING state.
+- ZEROTERM_EPAPER_DRIVER (default: waveshare)
+  Display backend: waveshare, file, or null.
+- ZEROTERM_EPAPER_MODEL (default: epd2in13_V3)
+  Waveshare Python module name to load.
+- ZEROTERM_EPAPER_LIB (default: empty)
+  Optional path to the waveshare_epd library.
+- ZEROTERM_EPAPER_OUTPUT (default: /var/lib/zeroterm/epaper.png)
+  Output path when ZEROTERM_EPAPER_DRIVER=file.
+- ZEROTERM_EPAPER_FONT_PATH (default: empty)
+  Optional TTF font path for e-Paper text rendering.
+- ZEROTERM_EPAPER_FONT_SIZE (default: 14)
+  Font size for e-Paper rendering.
+- ZEROTERM_EPAPER_WIDTH / ZEROTERM_EPAPER_HEIGHT (default: 250x122)
+  Display size override in pixels.
+- ZEROTERM_EPAPER_ROTATE (default: 0)
+  Rotation (0/90/180/270).
+- ZEROTERM_BATTERY_CMD (default: empty)
+  Optional command that prints battery percent.
+- ZEROTERM_BATTERY_PATH (default: /sys/class/power_supply)
+  Optional path to battery capacity files.
+
+RTL8821AU:
+- ZEROTERM_RTL8821AU_IFACE (default: wlan0)
+  Wi-Fi interface to switch into monitor mode.
+- ZEROTERM_RTL8821AU_REPO (default: https://github.com/aircrack-ng/rtl8812au.git)
+  Driver repository to clone into /usr/src.
+- ZEROTERM_RTL8821AU_SRC_DIR (default: /usr/src/rtl8812au)
+  Working directory for the driver build.
+- ZEROTERM_RTL8821AU_STATUS_FILE (default: /var/lib/zeroterm/rtl8821au.status)
+  Status output file written by the setup/check script.
+- ZEROTERM_RTL8821AU_LOG_FILE (default: /var/log/zeroterm/rtl8821au.log)
+  Log file for the setup/check script.
+- ZEROTERM_RTL8821AU_REQUIRE_INJECTION (default: 0)
+  When set to 1, the script fails if injection is not verified.

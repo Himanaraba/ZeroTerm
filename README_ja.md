@@ -176,11 +176,6 @@ ZeroTerm は端末を提供するだけであり、用途や意図を制限し�
 - docs/ARCHITECTURE.md
 - docs/SETUP_PI_ZERO.md
 - docs/SECURITY.md
-- docs/EPAPER.md
-- docs/CONFIGURATION.md
-- docs/PROTOCOL.md
-- docs/CLIENT.md
-- docs/RTL8821AU.md
 
 ---
 
