@@ -109,6 +109,13 @@ ZEROTERM_EPAPER_LIB=/opt/zeroterm/third_party/e-Paper/RaspberryPi_JetsonNano/pyt
 ZEROTERM_EPAPER_MODEL=epd2in13_V3
 ```
 
+After edits, restart services:
+
+```
+sudo systemctl restart zeroterm.service
+sudo systemctl restart zeroterm-status.service
+```
+
 ## 9) Install and enable systemd service
 ```
 sudo cp /opt/zeroterm/systemd/zeroterm.service /etc/systemd/system/zeroterm.service
@@ -138,6 +145,8 @@ Displayed items:
 - Wi-Fi state and SSID (if available)
 - External Wi-Fi adapter (if detected)
 - Battery percentage (and charge state when available)
+- Power state (CHG/DIS/FULL/IDLE when available)
+- Alerts (TIME/UPD/LOW when applicable)
 - Uptime, temperature, load, CPU, and memory (lightweight health summary)
 - A small status face to mirror the device mood
 
@@ -257,6 +266,21 @@ Update checks:
   Git branch to compare against.
 - ZEROTERM_UPDATE_FETCH (default: 0)
   When 1, fetch remote refs before comparing.
+
+Examples:
+
+```
+# Eco preset (low update frequency)
+ZEROTERM_STATUS_PROFILE=eco
+
+# Battery log every 5 minutes
+ZEROTERM_BATTERY_LOG_PATH=/var/log/zeroterm/battery.csv
+ZEROTERM_BATTERY_LOG_INTERVAL=300
+
+# Update notification (no fetch)
+ZEROTERM_UPDATE_CHECK=1
+ZEROTERM_UPDATE_FETCH=0
+```
 - ZEROTERM_EPAPER_DRIVER (default: waveshare)
   Display backend: waveshare, file, or null.
 - ZEROTERM_EPAPER_MODEL (default: epd2in13_V3)
