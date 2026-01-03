@@ -344,7 +344,7 @@ def render_status(
     font_header = _load_font(config.font_path, max(9, config.font_size - 4))
     font_body = _load_font(config.font_path, max(10, config.font_size - 2))
     font_small = _load_font(config.font_path, max(8, config.font_size - 6))
-    font_face = _load_font(config.font_path, max(22, config.font_size + 16))
+    font_face = _load_font(config.font_path, max(26, config.font_size + 22))
     if font_body is None or font_header is None or font_small is None or font_face is None:
         raise RuntimeError("Pillow font unavailable.")
 
