@@ -6,6 +6,10 @@
   const cursorEl = document.getElementById("cursor");
   const inputEl = document.getElementById("terminal-input");
   const keysEl = document.getElementById("terminal-keys");
+  const batteryEl = document.getElementById("battery-value");
+  const powerEl = document.getElementById("power-value");
+  const profileEl = document.getElementById("power-profile");
+  const powerActionsEl = document.getElementById("power-actions");
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8");
@@ -1053,6 +1057,88 @@
     statusEl.dataset.tone = tone || "idle";
   };
 
+  let statusTimer = null;
+
+  const setActiveProfile = (profile) => {
+    if (!powerActionsEl) {
+      return;
+    }
+    const normalized = profile ? profile.toLowerCase() : "";
+    const buttons = powerActionsEl.querySelectorAll("button[data-profile]");
+    for (const button of buttons) {
+      const isActive = button.dataset.profile === normalized;
+      button.dataset.active = isActive ? "true" : "false";
+    }
+  };
+
+  const updateTelemetry = (payload) => {
+    if (!payload) {
+      return;
+    }
+    if ("battery_percent" in payload) {
+      const batteryPercent =
+        typeof payload.battery_percent === "number" ? `${payload.battery_percent}%` : "--";
+      if (batteryEl) {
+        batteryEl.textContent = batteryPercent;
+      }
+    }
+    if ("power_state" in payload) {
+      const powerState = payload.power_state || "--";
+      if (powerEl) {
+        powerEl.textContent = powerState;
+      }
+    }
+    if ("profile" in payload) {
+      const profile = payload.profile ? payload.profile.toUpperCase() : "--";
+      if (profileEl) {
+        profileEl.textContent = profile;
+      }
+      setActiveProfile(payload.profile || "");
+    }
+  };
+
+  const fetchStatus = async () => {
+    try {
+      const response = await fetch("/api/status", { cache: "no-store" });
+      if (!response.ok) {
+        return;
+      }
+      const payload = await response.json();
+      updateTelemetry(payload);
+    } catch (error) {
+      // Ignore status fetch failures to keep the test UI responsive.
+    }
+  };
+
+  const startStatusPoll = () => {
+    if (statusTimer) {
+      clearInterval(statusTimer);
+    }
+    fetchStatus();
+    statusTimer = setInterval(fetchStatus, 15000);
+  };
+
+  const postPowerProfile = async (profile) => {
+    if (!profile) {
+      return;
+    }
+    try {
+      const response = await fetch("/api/power", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile }),
+      });
+      if (!response.ok) {
+        return;
+      }
+      const payload = await response.json();
+      updateTelemetry(payload);
+      setTimeout(fetchStatus, 800);
+    } catch (error) {
+      // Ignore control failures to avoid blocking the test UI.
+    }
+  };
+
   const writeText = (text) => {
     view.write(encoder.encode(text));
   };
@@ -1251,6 +1337,19 @@
       if (seq) {
         handleInput(seq);
         inputEl.focus();
+      }
+    });
+  }
+
+  if (powerActionsEl) {
+    powerActionsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-profile]");
+      if (!button) {
+        return;
+      }
+      const profile = button.dataset.profile;
+      if (profile) {
+        postPowerProfile(profile);
       }
     });
   }
@@ -1553,4 +1652,5 @@
   inputEl.value = "";
   inputEl.focus();
   createEpaperDebug();
+  startStatusPoll();
 })();

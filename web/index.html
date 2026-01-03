@@ -16,6 +16,25 @@
             <div class="brand-subtitle">Headless Kali TTY over Web</div>
           </div>
         </div>
+        <div class="telemetry">
+          <div class="telemetry-item">
+            <span class="telemetry-label">BAT</span>
+            <span class="telemetry-value" id="battery-value">--</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">PWR</span>
+            <span class="telemetry-value" id="power-value">--</span>
+          </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label">MODE</span>
+            <span class="telemetry-value" id="power-profile">--</span>
+          </div>
+          <div class="telemetry-actions" id="power-actions" aria-label="Power presets">
+            <button type="button" data-profile="eco">ECO</button>
+            <button type="button" data-profile="balanced">BAL</button>
+            <button type="button" data-profile="performance">PERF</button>
+          </div>
+        </div>
         <div class="status-wrap">
           <div class="status-label">LINK</div>
           <div class="status-pill" id="status">DISCONNECTED</div>
