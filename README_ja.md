@@ -180,6 +180,7 @@ ZeroTerm は端末を提供するだけであり、用途や意図を制限し�
 - docs/CONFIGURATION.md
 - docs/PROTOCOL.md
 - docs/CLIENT.md
+- docs/RTL8821AU.md
 
 ---
 

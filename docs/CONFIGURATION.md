@@ -66,3 +66,23 @@ loads /etc/zeroterm/zeroterm.env so you can change defaults without editing code
 
 - ZEROTERM_BATTERY_PATH (default: /sys/class/power_supply)
   Optional path to battery capacity files.
+
+## RTL8821AU Variables
+
+- ZEROTERM_RTL8821AU_IFACE (default: wlan0)
+  Wi-Fi interface to switch into monitor mode.
+
+- ZEROTERM_RTL8821AU_REPO (default: https://github.com/aircrack-ng/rtl8812au.git)
+  Driver repository to clone into /usr/src.
+
+- ZEROTERM_RTL8821AU_SRC_DIR (default: /usr/src/rtl8812au)
+  Working directory for the driver build.
+
+- ZEROTERM_RTL8821AU_STATUS_FILE (default: /var/lib/zeroterm/rtl8821au.status)
+  Status output file written by the setup/check script.
+
+- ZEROTERM_RTL8821AU_LOG_FILE (default: /var/log/zeroterm/rtl8821au.log)
+  Log file for the setup/check script.
+
+- ZEROTERM_RTL8821AU_REQUIRE_INJECTION (default: 0)
+  When set to 1, the script fails if injection is not verified.

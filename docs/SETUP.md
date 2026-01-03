@@ -46,7 +46,29 @@ Quick install (from repo root):
 sudo bash scripts/install_pi_zero.sh
 ```
 
-## 4) Configure environment
+## 4) Optional: RTL8821AU monitor mode
+
+Run the installer + verification script:
+
+```
+sudo bash scripts/rtl8821au_setup.sh
+```
+
+Enable the one-shot systemd unit (runs at boot):
+
+```
+sudo cp /opt/zeroterm/systemd/zeroterm-rtl8821au.service /etc/systemd/system/zeroterm-rtl8821au.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now zeroterm-rtl8821au.service
+```
+
+If your adapter enumerates as wlan1, set:
+
+```
+sudo ZEROTERM_RTL8821AU_IFACE=wlan1 bash scripts/rtl8821au_setup.sh
+```
+
+## 5) Configure environment
 
 ```
 sudo mkdir -p /etc/zeroterm
@@ -61,7 +83,7 @@ ZEROTERM_EPAPER_LIB=/opt/zeroterm/third_party/e-Paper/RaspberryPi_JetsonNano/pyt
 ZEROTERM_EPAPER_MODEL=epd2in13_V3
 ```
 
-## 5) Install the systemd unit
+## 6) Install the systemd unit
 
 ```
 sudo cp /opt/zeroterm/systemd/zeroterm.service /etc/systemd/system/zeroterm.service
@@ -71,7 +93,7 @@ sudo systemctl enable --now zeroterm.service
 sudo systemctl enable --now zeroterm-status.service
 ```
 
-## 6) Access from the iPad
+## 7) Access from the iPad
 
 Open Safari and connect to:
 

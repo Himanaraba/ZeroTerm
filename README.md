@@ -165,6 +165,7 @@ This repository includes a minimal, framework-free baseline:
 - docs/CONFIGURATION.md
 - docs/PROTOCOL.md
 - docs/CLIENT.md
+- docs/RTL8821AU.md
 
 ---
 

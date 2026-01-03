@@ -67,13 +67,35 @@ Quick install (from repo root):
 sudo bash scripts/install_pi_zero.sh
 ```
 
-## 6) Decide runtime user
+## 6) Optional: RTL8821AU monitor mode
+
+Run the installer + verification script:
+
+```
+sudo bash scripts/rtl8821au_setup.sh
+```
+
+Enable the one-shot systemd unit (runs at boot):
+
+```
+sudo cp /opt/zeroterm/systemd/zeroterm-rtl8821au.service /etc/systemd/system/zeroterm-rtl8821au.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now zeroterm-rtl8821au.service
+```
+
+If your adapter enumerates as wlan1, set:
+
+```
+sudo ZEROTERM_RTL8821AU_IFACE=wlan1 bash scripts/rtl8821au_setup.sh
+```
+
+## 7) Decide runtime user
 
 ZeroTerm assumes a full-power shell. Running as root preserves unrestricted
 command access (default). If you choose a dedicated user, some commands will
 be unavailable and that conflicts with the project goals.
 
-## 7) Configure
+## 8) Configure
 ```
 sudo mkdir -p /etc/zeroterm
 sudo cp /opt/zeroterm/config/zeroterm.env /etc/zeroterm/zeroterm.env
@@ -87,7 +109,7 @@ ZEROTERM_EPAPER_LIB=/opt/zeroterm/third_party/e-Paper/RaspberryPi_JetsonNano/pyt
 ZEROTERM_EPAPER_MODEL=epd2in13_V3
 ```
 
-## 8) Install and enable systemd service
+## 9) Install and enable systemd service
 ```
 sudo cp /opt/zeroterm/systemd/zeroterm.service /etc/systemd/system/zeroterm.service
 sudo cp /opt/zeroterm/systemd/zeroterm-status.service /etc/systemd/system/zeroterm-status.service
@@ -96,7 +118,7 @@ sudo systemctl enable --now zeroterm.service
 sudo systemctl enable --now zeroterm-status.service
 ```
 
-## 9) Access from iPad
+## 10) Access from iPad
 - Connect the iPad to the Pi management Wi-Fi network.
 - Open `http://<pi-ip>:<port>/` in Safari.
 
