@@ -10,6 +10,11 @@
   const powerEl = document.getElementById("power-value");
   const profileEl = document.getElementById("power-profile");
   const powerActionsEl = document.getElementById("power-actions");
+  const wifiLabelEl = document.getElementById("wifi-label");
+  const wifiStateEl = document.getElementById("wifi-state");
+  const wifiModeEl = document.getElementById("wifi-mode");
+  const monitorActionsEl = document.getElementById("monitor-actions");
+  const toolActionsEl = document.getElementById("tool-actions");
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8");
@@ -1084,6 +1089,8 @@
   let reconnectDelay = 1000;
   const view = new TerminalView(termTextEl, cursorEl);
   let statusTimer = null;
+  let wifiIface = "wlan0";
+  let wifiMode = null;
 
   const setStatus = (text, tone) => {
     statusEl.textContent = text;
@@ -1115,6 +1122,55 @@
     }
   };
 
+  const sanitizeIface = (iface) => {
+    if (!iface) {
+      return "wlan0";
+    }
+    const cleaned = iface.replace(/[^a-zA-Z0-9_-]/g, "");
+    return cleaned || "wlan0";
+  };
+
+  const formatWifiState = (state) => {
+    if (!state) {
+      return "--";
+    }
+    return String(state).toUpperCase();
+  };
+
+  const formatWifiMode = (mode) => {
+    if (!mode) {
+      return "--";
+    }
+    const value = String(mode).toLowerCase();
+    if (value === "monitor") {
+      return "MON";
+    }
+    if (value === "managed") {
+      return "MAN";
+    }
+    if (value === "station") {
+      return "STA";
+    }
+    return value.slice(0, 3).toUpperCase();
+  };
+
+  const setMonitorActive = (mode) => {
+    if (!monitorActionsEl) {
+      return;
+    }
+    const normalized = mode ? String(mode).toLowerCase() : "";
+    const buttons = monitorActionsEl.querySelectorAll("button[data-monitor]");
+    for (const button of buttons) {
+      let active = false;
+      if (normalized === "monitor") {
+        active = button.dataset.monitor === "on";
+      } else if (normalized) {
+        active = button.dataset.monitor === "off";
+      }
+      button.dataset.active = active ? "true" : "false";
+    }
+  };
+
   const updateTelemetry = (payload) => {
     if (!payload) {
       return;
@@ -1138,6 +1194,24 @@
         profileEl.textContent = profile;
       }
       setActiveProfile(payload.profile || "");
+    }
+    if ("wifi_iface" in payload) {
+      wifiIface = payload.wifi_iface || wifiIface;
+      if (wifiLabelEl) {
+        wifiLabelEl.textContent = sanitizeIface(wifiIface).toUpperCase();
+      }
+    }
+    if ("wifi_state" in payload) {
+      if (wifiStateEl) {
+        wifiStateEl.textContent = formatWifiState(payload.wifi_state);
+      }
+    }
+    if ("wifi_mode" in payload) {
+      wifiMode = payload.wifi_mode || null;
+      if (wifiModeEl) {
+        wifiModeEl.textContent = formatWifiMode(payload.wifi_mode);
+      }
+      setMonitorActive(payload.wifi_mode);
     }
   };
 
@@ -1236,6 +1310,12 @@
     down: "\x1b[B",
     left: "\x1b[D",
     right: "\x1b[C",
+  };
+
+  const toolCommands = {
+    wifite: "wifite",
+    hcxdumptool: "hcxdumptool",
+    bettercap: "bettercap",
   };
 
   const mapKey = (event) => {
@@ -1372,6 +1452,41 @@
       if (profile) {
         postPowerProfile(profile);
       }
+    });
+  }
+
+  if (monitorActionsEl) {
+    monitorActionsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-monitor]");
+      if (!button) {
+        return;
+      }
+      const action = button.dataset.monitor;
+      const iface = sanitizeIface(wifiIface);
+      if (!action || !iface) {
+        return;
+      }
+      const mode = action === "on" ? "monitor" : "managed";
+      const command = `command -v zeroterm-monitor >/dev/null 2>&1 && zeroterm-monitor ${action} ${iface} || ` +
+        `(ip link set ${iface} down && iw dev ${iface} set type ${mode} && ip link set ${iface} up)`;
+      sendInput(`${command}\n`);
+      inputEl.focus();
+    });
+  }
+
+  if (toolActionsEl) {
+    toolActionsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-tool]");
+      if (!button) {
+        return;
+      }
+      const tool = button.dataset.tool;
+      const command = toolCommands[tool];
+      if (!command) {
+        return;
+      }
+      sendInput(`${command}\n`);
+      inputEl.focus();
     });
   }
 

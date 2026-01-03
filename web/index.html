@@ -29,10 +29,24 @@
             <span class="telemetry-label">MODE</span>
             <span class="telemetry-value" id="power-profile">--</span>
           </div>
+          <div class="telemetry-item">
+            <span class="telemetry-label" id="wifi-label">WLAN0</span>
+            <span class="telemetry-value" id="wifi-state">--</span>
+            <span class="telemetry-value telemetry-muted" id="wifi-mode">--</span>
+          </div>
           <div class="telemetry-actions" id="power-actions" aria-label="Power presets">
             <button type="button" data-profile="eco">ECO</button>
             <button type="button" data-profile="balanced">BAL</button>
             <button type="button" data-profile="performance">PERF</button>
+          </div>
+          <div class="telemetry-actions" id="monitor-actions" aria-label="Monitor mode">
+            <button type="button" data-monitor="on">MON ON</button>
+            <button type="button" data-monitor="off">MON OFF</button>
+          </div>
+          <div class="telemetry-actions telemetry-tools" id="tool-actions" aria-label="Quick tools">
+            <button type="button" data-tool="wifite">WIFITE</button>
+            <button type="button" data-tool="hcxdumptool">HCXDUMP</button>
+            <button type="button" data-tool="bettercap">BETTERCAP</button>
           </div>
         </div>
         <div class="status-wrap">

@@ -10,6 +10,11 @@
   const powerEl = document.getElementById("power-value");
   const profileEl = document.getElementById("power-profile");
   const powerActionsEl = document.getElementById("power-actions");
+  const wifiLabelEl = document.getElementById("wifi-label");
+  const wifiStateEl = document.getElementById("wifi-state");
+  const wifiModeEl = document.getElementById("wifi-mode");
+  const monitorActionsEl = document.getElementById("monitor-actions");
+  const toolActionsEl = document.getElementById("tool-actions");
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8");
@@ -1070,6 +1075,12 @@
     battery_status: null,
     power_state: null,
     profile: null,
+    wifi_iface: "wlan0",
+    wifi_state: "up",
+    wifi_mode: "managed",
+    wifi_channel: "11",
+    wifi_packets: 1200,
+    wifi_ip: null,
   };
 
   const mockBootAt = Date.now() - Math.floor(Math.random() * 6 * 60 * 60 * 1000);
@@ -1119,6 +1130,8 @@
   };
 
   let statusTimer = null;
+  let wifiIface = "wlan0";
+  let wifiMode = null;
 
   const setActiveProfile = (profile) => {
     if (!powerActionsEl) {
@@ -1129,6 +1142,55 @@
     for (const button of buttons) {
       const isActive = button.dataset.profile === normalized;
       button.dataset.active = isActive ? "true" : "false";
+    }
+  };
+
+  const sanitizeIface = (iface) => {
+    if (!iface) {
+      return "wlan0";
+    }
+    const cleaned = iface.replace(/[^a-zA-Z0-9_-]/g, "");
+    return cleaned || "wlan0";
+  };
+
+  const formatWifiState = (state) => {
+    if (!state) {
+      return "--";
+    }
+    return String(state).toUpperCase();
+  };
+
+  const formatWifiMode = (mode) => {
+    if (!mode) {
+      return "--";
+    }
+    const value = String(mode).toLowerCase();
+    if (value === "monitor") {
+      return "MON";
+    }
+    if (value === "managed") {
+      return "MAN";
+    }
+    if (value === "station") {
+      return "STA";
+    }
+    return value.slice(0, 3).toUpperCase();
+  };
+
+  const setMonitorActive = (mode) => {
+    if (!monitorActionsEl) {
+      return;
+    }
+    const normalized = mode ? String(mode).toLowerCase() : "";
+    const buttons = monitorActionsEl.querySelectorAll("button[data-monitor]");
+    for (const button of buttons) {
+      let active = false;
+      if (normalized === "monitor") {
+        active = button.dataset.monitor === "on";
+      } else if (normalized) {
+        active = button.dataset.monitor === "off";
+      }
+      button.dataset.active = active ? "true" : "false";
     }
   };
 
@@ -1161,6 +1223,36 @@
         profileEl.textContent = profile;
       }
       setActiveProfile(payload.profile || "");
+    }
+    if ("wifi_iface" in payload) {
+      telemetryState.wifi_iface = payload.wifi_iface;
+      wifiIface = payload.wifi_iface || wifiIface;
+      if (wifiLabelEl) {
+        wifiLabelEl.textContent = sanitizeIface(wifiIface).toUpperCase();
+      }
+    }
+    if ("wifi_state" in payload) {
+      telemetryState.wifi_state = payload.wifi_state;
+      if (wifiStateEl) {
+        wifiStateEl.textContent = formatWifiState(payload.wifi_state);
+      }
+    }
+    if ("wifi_mode" in payload) {
+      telemetryState.wifi_mode = payload.wifi_mode;
+      wifiMode = payload.wifi_mode || null;
+      if (wifiModeEl) {
+        wifiModeEl.textContent = formatWifiMode(payload.wifi_mode);
+      }
+      setMonitorActive(payload.wifi_mode);
+    }
+    if ("wifi_channel" in payload) {
+      telemetryState.wifi_channel = payload.wifi_channel;
+    }
+    if ("wifi_packets" in payload) {
+      telemetryState.wifi_packets = payload.wifi_packets;
+    }
+    if ("wifi_ip" in payload) {
+      telemetryState.wifi_ip = payload.wifi_ip;
     }
   };
 
@@ -1219,6 +1311,12 @@
     down: "\x1b[B",
     left: "\x1b[D",
     right: "\x1b[C",
+  };
+
+  const toolCommands = {
+    wifite: "wifite",
+    hcxdumptool: "hcxdumptool",
+    bettercap: "bettercap",
   };
 
   const writeLine = (text = "") => {
@@ -1362,6 +1460,23 @@
       suffix = "F";
     }
     return `${percent}%${suffix}`;
+  };
+
+  const formatPackets = (value) => {
+    if (typeof value !== "number") {
+      return "--";
+    }
+    if (value < 1000) {
+      return String(value);
+    }
+    if (value < 1000000) {
+      const scaled = value / 1000;
+      const text = scaled.toFixed(1).replace(/\.0$/, "");
+      return `${text}k`;
+    }
+    const scaled = value / 1000000;
+    const text = scaled.toFixed(1).replace(/\.0$/, "");
+    return `${text}m`;
   };
 
   const pickFace = (status, batteryPercent) => {
@@ -1892,6 +2007,45 @@
     });
   }
 
+  if (monitorActionsEl) {
+    monitorActionsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-monitor]");
+      if (!button) {
+        return;
+      }
+      const action = button.dataset.monitor;
+      const iface = sanitizeIface(wifiIface);
+      if (!action || !iface) {
+        return;
+      }
+      const mode = action === "on" ? "monitor" : "managed";
+      telemetryState.wifi_mode = mode;
+      wifiMode = mode;
+      if (wifiModeEl) {
+        wifiModeEl.textContent = formatWifiMode(mode);
+      }
+      setMonitorActive(mode);
+      handleInput(`zeroterm-monitor ${action} ${iface}\n`);
+      inputEl.focus();
+    });
+  }
+
+  if (toolActionsEl) {
+    toolActionsEl.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-tool]");
+      if (!button) {
+        return;
+      }
+      const tool = button.dataset.tool;
+      const command = toolCommands[tool];
+      if (!command) {
+        return;
+      }
+      handleInput(`${command}\n`);
+      inputEl.focus();
+    });
+  }
+
   const createEpaperDebug = () => {
     const style = document.createElement("style");
     style.textContent = `
@@ -2069,6 +2223,8 @@
           <div class="epaper-debug__message">
             <div data-line="msg-main"></div>
             <div class="epaper-debug__message-sub" data-line="msg-sub"></div>
+            <div class="epaper-debug__message-sub" data-line="msg-chan"></div>
+            <div class="epaper-debug__message-sub" data-line="msg-pkt"></div>
             <div class="epaper-debug__message-sub" data-line="msg-ext"></div>
             <div class="epaper-debug__message-sub" data-line="msg-power"></div>
             <div class="epaper-debug__message-sub" data-line="msg-alert"></div>
@@ -2104,6 +2260,8 @@
     const statusLineEl = panel.querySelector('[data-line="status-line"]');
     const msgMainEl = panel.querySelector('[data-line="msg-main"]');
     const msgSubEl = panel.querySelector('[data-line="msg-sub"]');
+    const msgChanEl = panel.querySelector('[data-line="msg-chan"]');
+    const msgPktEl = panel.querySelector('[data-line="msg-pkt"]');
     const msgExtEl = panel.querySelector('[data-line="msg-ext"]');
     const msgPowerEl = panel.querySelector('[data-line="msg-power"]');
     const msgAlertEl = panel.querySelector('[data-line="msg-alert"]');
@@ -2126,6 +2284,11 @@
         mockNetwork.ssid = ssids[Math.floor(Math.random() * ssids.length)];
       }
       const ssid = mockNetwork.ssid;
+      const channel = telemetryState.wifi_channel || "11";
+      const packets =
+        typeof telemetryState.wifi_packets === "number"
+          ? telemetryState.wifi_packets
+          : Math.floor(1000 + Math.random() * 9000);
       const extIface = mockNetwork.extIface;
       const battery =
         typeof telemetryState.battery_percent === "number"
@@ -2164,6 +2327,8 @@
       statusLineEl.textContent = statusMessage(status);
       msgMainEl.textContent = `STATE ${status}`;
       msgSubEl.textContent = `SSID ${ssid}`;
+      msgChanEl.textContent = `CH ${channel || "--"}`;
+      msgPktEl.textContent = `PKT ${formatPackets(packets)}`;
       msgExtEl.textContent = extIface ? `EXT ${extIface.toUpperCase()}` : "";
       msgPowerEl.textContent = `PWR ${powerState || "--"}`;
       msgAlertEl.textContent = alertFlags.length ? `ALRT ${alertFlags.join(" ")}` : "";

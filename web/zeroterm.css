@@ -163,6 +163,11 @@ body::after {
   font-weight: 600;
 }
 
+.telemetry-value.telemetry-muted {
+  color: var(--muted);
+  font-weight: 500;
+}
+
 .telemetry-actions {
   display: inline-flex;
   gap: 6px;
@@ -190,6 +195,10 @@ body::after {
   color: var(--accent-strong);
   border-color: rgba(214, 169, 111, 0.7);
   box-shadow: 0 0 12px rgba(214, 169, 111, 0.25);
+}
+
+.telemetry-actions.telemetry-tools button {
+  border-color: rgba(125, 212, 155, 0.5);
 }
 
 .status-label {

@@ -36,6 +36,9 @@ def js() -> Response:
 def status() -> Response:
     battery = random.randint(35, 98)
     power_state = random.choice(["CHG", "DIS", "FULL", "IDLE"])
+    wifi_mode = random.choice(["managed", "monitor"])
+    wifi_channel = random.choice(["1", "6", "11"])
+    wifi_packets = random.randint(1200, 85000)
     status_map = {
         "CHG": "Charging",
         "DIS": "Discharging",
@@ -48,6 +51,13 @@ def status() -> Response:
         "battery_status": battery_status,
         "power_state": power_state,
         "profile": app.config.get("TEST_PROFILE"),
+        "wifi_iface": "wlan0",
+        "wifi_state": "up",
+        "wifi_ssid": "KALI-NET",
+        "wifi_mode": wifi_mode,
+        "wifi_channel": wifi_channel,
+        "wifi_packets": wifi_packets,
+        "wifi_ip": "192.168.0.50",
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
     return jsonify(payload)
