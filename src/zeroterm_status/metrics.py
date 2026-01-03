@@ -113,6 +113,40 @@ def _iface_exists(iface: str) -> bool:
     return (Path("/sys/class/net") / iface).exists()
 
 
+def list_wifi_ifaces() -> list[str]:
+    root = Path("/sys/class/net")
+    if not root.exists():
+        return []
+    return sorted(
+        entry.name
+        for entry in root.iterdir()
+        if entry.is_dir() and entry.name.startswith("wlan")
+    )
+
+
+def select_wifi_iface(preferred: str, auto: bool) -> str:
+    if preferred and _iface_exists(preferred):
+        return preferred
+    if not auto:
+        return preferred
+    for iface in list_wifi_ifaces():
+        if _iface_exists(iface):
+            return iface
+    return preferred
+
+
+def find_external_wifi(primary_iface: str | None) -> str | None:
+    ifaces = list_wifi_ifaces()
+    if not ifaces:
+        return None
+    if primary_iface and primary_iface in ifaces:
+        extras = [iface for iface in ifaces if iface != primary_iface]
+        return extras[0] if extras else None
+    if len(ifaces) > 1:
+        return ifaces[0]
+    return None
+
+
 def get_ip_address(iface: str) -> str | None:
     if not iface:
         return None

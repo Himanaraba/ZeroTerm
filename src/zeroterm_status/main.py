@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import logging
 import time
+from datetime import datetime
 
 from .config import load_config
 from .display import create_display
 from .drivers.base import DisplayError
 from .drivers.file import FileDisplay
 from .drivers.null import NullDisplay
-from .metrics import read_battery, read_service_state, read_system, read_wifi
+from .metrics import find_external_wifi, read_battery, read_service_state, read_system, read_wifi, select_wifi_iface
 from .render import RenderConfig, render_status
 
 logger = logging.getLogger(__name__)
@@ -34,6 +35,29 @@ def _format_battery(percent: int | None, status: str | None) -> str:
     if status:
         return f"{percent}% {status.upper()}"
     return f"{percent}%"
+
+
+def _is_night(now: datetime, start: int, end: int) -> bool:
+    if start == end:
+        return False
+    if start < end:
+        return start <= now.hour < end
+    return now.hour >= start or now.hour < end
+
+
+def _select_interval(config, battery_percent: int | None) -> int:
+    interval = config.interval
+    now = datetime.now()
+    if config.night_interval > 0 and _is_night(now, config.night_start, config.night_end):
+        interval = max(interval, config.night_interval)
+    if (
+        battery_percent is not None
+        and config.low_battery_threshold > 0
+        and config.low_battery_interval > 0
+        and battery_percent <= config.low_battery_threshold
+    ):
+        interval = max(interval, config.low_battery_interval)
+    return interval
 
 
 def build_payload(service_state: str | None, wifi, battery) -> tuple[str, str, str, str]:
@@ -85,23 +109,28 @@ def main() -> None:
     render_failures = 0
 
     while True:
+        interval = config.interval
         try:
-            wifi = read_wifi(config.iface)
+            iface = select_wifi_iface(config.iface, config.iface_auto)
+            wifi = read_wifi(iface)
             battery = read_battery(config.battery_path, config.battery_cmd)
             system = read_system()
             service = read_service_state(config.service_name)
             status, ip, wifi_text, battery_text = build_payload(service.state, wifi, battery)
+            external_iface = find_external_wifi(iface)
             temp_text = system.temp or "--"
             load_text = system.load or "--"
             uptime_text = system.uptime or "--"
             mem_text = f"{system.mem_percent}%" if system.mem_percent is not None else "--"
             cpu_text = f"{system.cpu_percent}%" if system.cpu_percent is not None else "--"
+            interval = _select_interval(config, battery.percent)
             payload = "\n".join(
                 [
                     status,
                     ip,
                     wifi_text,
                     battery_text,
+                    external_iface or "--",
                     temp_text,
                     load_text,
                     uptime_text,
@@ -117,6 +146,7 @@ def main() -> None:
                         ip=ip,
                         wifi=wifi_text,
                         battery=battery_text,
+                        adapter=external_iface,
                         temp=temp_text,
                         load=load_text,
                         uptime=uptime_text,
@@ -128,7 +158,7 @@ def main() -> None:
                     )
                 except RuntimeError as exc:
                     render_failures += 1
-                    backoff = min(60, max(config.interval, 5) * render_failures)
+                    backoff = min(60, max(interval, 5) * render_failures)
                     next_render_attempt = now + backoff
                     logger.error("Render failed (backoff %ss): %s", backoff, exc)
                     continue
@@ -145,7 +175,7 @@ def main() -> None:
                 last_payload = payload
         except Exception:
             logger.exception("Status update failed")
-        time.sleep(config.interval)
+        time.sleep(interval)
 
 
 if __name__ == "__main__":

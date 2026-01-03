@@ -324,6 +324,7 @@ def render_status(
     ip: str,
     wifi: str,
     battery: str,
+    adapter: str | None,
     temp: str,
     load: str,
     uptime: str,
@@ -450,7 +451,13 @@ def render_status(
     message_y += _text_height(font_small) + 2
     ssid_line = _fit_text(draw, f"SSID {wifi_ssid or '--'}", font_small, right_width - 4)
     draw.text((message_x, message_y), ssid_line, font=font_small, fill=0)
-    message_y += _text_height(font_small) + 4
+    message_y += _text_height(font_small) + 2
+    if adapter:
+        adapter_line = _fit_text(draw, f"EXT {adapter.upper()}", font_small, right_width - 4)
+        draw.text((message_x, message_y), adapter_line, font=font_small, fill=0)
+        message_y += _text_height(font_small) + 2
+    else:
+        message_y += 2
 
     metrics_top = body_bottom - (_text_height(font_body) + _text_height(font_small) + 6)
     if metrics_top < message_y:

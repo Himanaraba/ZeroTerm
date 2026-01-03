@@ -36,12 +36,21 @@ def _format_battery(percent: int | None, status: str | None) -> str:
 
 
 def _build_live_payload(config):
-    from zeroterm_status.metrics import read_battery, read_service_state, read_system, read_wifi
+    from zeroterm_status.metrics import (
+        find_external_wifi,
+        read_battery,
+        read_service_state,
+        read_system,
+        read_wifi,
+        select_wifi_iface,
+    )
 
-    wifi = read_wifi(config.iface)
+    iface = select_wifi_iface(config.iface, config.iface_auto)
+    wifi = read_wifi(iface)
     battery = read_battery(config.battery_path, config.battery_cmd)
     system = read_system()
     service = read_service_state(config.service_name)
+    external_iface = find_external_wifi(iface)
 
     status = _format_status(service.state)
     ip = wifi.ip or "--"
@@ -62,6 +71,7 @@ def _build_live_payload(config):
         ip,
         wifi_text,
         battery_text,
+        external_iface,
         temp_text,
         load_text,
         uptime_text,
@@ -77,6 +87,7 @@ def _build_sample_payload():
         "10.0.0.12",
         "UP ZEROTERM-LAB",
         "67% CHARGING",
+        "wlan1",
         "44C",
         "0.42",
         "3h12m",
@@ -130,12 +141,13 @@ def main() -> int:
             ip=payload[1],
             wifi=payload[2],
             battery=payload[3],
-            temp=payload[4],
-            load=payload[5],
-            uptime=payload[6],
-            mem=payload[7],
-            cpu=payload[8],
-            battery_percent=payload[9],
+            adapter=payload[4],
+            temp=payload[5],
+            load=payload[6],
+            uptime=payload[7],
+            mem=payload[8],
+            cpu=payload[9],
+            battery_percent=payload[10],
             updated=None,
             config=render_config,
         )

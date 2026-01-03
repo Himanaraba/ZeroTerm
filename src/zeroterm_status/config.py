@@ -8,6 +8,7 @@ import os
 class StatusConfig:
     interval: int
     iface: str
+    iface_auto: bool
     service_name: str
     epaper_driver: str
     epaper_model: str
@@ -21,6 +22,11 @@ class StatusConfig:
     battery_path: str | None
     battery_cmd: str | None
     log_level: str
+    night_start: int
+    night_end: int
+    night_interval: int
+    low_battery_threshold: int
+    low_battery_interval: int
 
 
 def _env(name: str, default: str) -> str:
@@ -40,6 +46,13 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def _env_path(name: str) -> str | None:
     value = os.environ.get(name)
     if value is None or value.strip() == "":
@@ -50,6 +63,7 @@ def _env_path(name: str) -> str | None:
 def load_config() -> StatusConfig:
     interval = max(5, _env_int("ZEROTERM_STATUS_INTERVAL", 30))
     iface = _env("ZEROTERM_STATUS_IFACE", "wlan0")
+    iface_auto = _env_bool("ZEROTERM_STATUS_IFACE_AUTO", False)
     service_name = _env("ZEROTERM_STATUS_SERVICE", "zeroterm.service")
 
     epaper_driver = _env("ZEROTERM_EPAPER_DRIVER", "waveshare")
@@ -70,9 +84,20 @@ def load_config() -> StatusConfig:
 
     log_level = _env("ZEROTERM_LOG_LEVEL", "info").lower()
 
+    night_start = _env_int("ZEROTERM_STATUS_NIGHT_START", 22)
+    if night_start < 0 or night_start > 23:
+        night_start = 22
+    night_end = _env_int("ZEROTERM_STATUS_NIGHT_END", 6)
+    if night_end < 0 or night_end > 23:
+        night_end = 6
+    night_interval = max(0, _env_int("ZEROTERM_STATUS_NIGHT_INTERVAL", 0))
+    low_battery_threshold = max(0, min(100, _env_int("ZEROTERM_STATUS_LOW_BATTERY", 0)))
+    low_battery_interval = max(0, _env_int("ZEROTERM_STATUS_LOW_BATTERY_INTERVAL", 0))
+
     return StatusConfig(
         interval=interval,
         iface=iface,
+        iface_auto=iface_auto,
         service_name=service_name,
         epaper_driver=epaper_driver,
         epaper_model=epaper_model,
@@ -86,4 +111,9 @@ def load_config() -> StatusConfig:
         battery_path=battery_path,
         battery_cmd=battery_cmd,
         log_level=log_level,
+        night_start=night_start,
+        night_end=night_end,
+        night_interval=night_interval,
+        low_battery_threshold=low_battery_threshold,
+        low_battery_interval=low_battery_interval,
     )

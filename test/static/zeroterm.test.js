@@ -1094,6 +1094,7 @@
           <div class="epaper-debug__message">
             <div data-line="msg-main"></div>
             <div class="epaper-debug__message-sub" data-line="msg-sub"></div>
+            <div class="epaper-debug__message-sub" data-line="msg-ext"></div>
           </div>
           <div class="epaper-debug__metrics">
             <div>
@@ -1126,6 +1127,7 @@
     const statusLineEl = panel.querySelector('[data-line="status-line"]');
     const msgMainEl = panel.querySelector('[data-line="msg-main"]');
     const msgSubEl = panel.querySelector('[data-line="msg-sub"]');
+    const msgExtEl = panel.querySelector('[data-line="msg-ext"]');
     const batPercentEl = panel.querySelector('[data-line="bat-percent"]');
     const batFillEl = panel.querySelector(".epaper-debug__battery-fill");
     const memEl = panel.querySelector('[data-line="mem"]');
@@ -1143,6 +1145,7 @@
       const status = Date.now() - lastInputAt < 20000 ? "RUNNING" : "READY";
       const wifiState = navigator.onLine ? "UP" : "DOWN";
       const ssid = ssids[Math.floor(Math.random() * ssids.length)];
+      const extIface = Math.random() > 0.6 ? "wlan1" : null;
       const battery = Math.floor(40 + Math.random() * 55);
       const load = (Math.random() * 0.9 + 0.1).toFixed(2);
       const temp = Math.floor(36 + Math.random() * 10);
@@ -1169,6 +1172,7 @@
       statusLineEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
       msgMainEl.textContent = `STATE ${status}`;
       msgSubEl.textContent = `SSID ${ssid}`;
+      msgExtEl.textContent = extIface ? `EXT ${extIface.toUpperCase()}` : "";
       batPercentEl.textContent = `${battery}%`;
       batFillEl.style.width = `${battery}%`;
       memEl.textContent = `${mem}%`;
