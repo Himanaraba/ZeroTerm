@@ -936,42 +936,37 @@
         z-index: 999;
       }
       .epaper-debug__top {
-        background: #111;
-        color: #f4f3e8;
+        color: #111;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: 1.6fr 1.1fr 0.9fr 1.2fr;
         font-size: 9px;
         letter-spacing: 0.12em;
         text-transform: uppercase;
+        border-bottom: 1px solid #111;
       }
       .epaper-debug__top span {
-        padding: 2px 4px;
-        border-left: 1px solid #f4f3e8;
-        text-align: center;
+        padding: 2px 3px;
+        text-align: left;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-      }
-      .epaper-debug__top span:first-child {
-        border-left: none;
       }
       .epaper-debug__body {
         flex: 1;
         padding: 4px 6px;
         display: grid;
-        grid-template-columns: 92px 1fr;
+        grid-template-columns: 1.5fr 1fr;
         gap: 6px;
       }
       .epaper-debug__left,
       .epaper-debug__right {
-        border: 1px solid #111;
-        padding: 4px;
+        padding: 0;
         display: flex;
         flex-direction: column;
         gap: 4px;
       }
       .epaper-debug__name {
-        font-size: 10px;
+        font-size: 9px;
         letter-spacing: 0.08em;
       }
       .epaper-debug__face-wrap {
@@ -980,7 +975,7 @@
         border-radius: 50%;
         display: grid;
         place-items: center;
-        padding: 8px;
+        padding: 4px;
       }
       .epaper-debug__face {
         position: relative;
@@ -1063,7 +1058,7 @@
         display: flex;
         flex-direction: column;
         gap: 4px;
-        font-size: 9px;
+        font-size: 8px;
       }
       .epaper-debug__battery-row {
         display: flex;
@@ -1083,8 +1078,14 @@
         width: 0%;
         background: #111;
       }
-      .epaper-debug__message {
+      .epaper-debug__status-line {
         font-size: 10px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 2px;
+      }
+      .epaper-debug__message {
+        font-size: 9px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
       }
@@ -1158,6 +1159,7 @@
           </div>
         </div>
         <div class="epaper-debug__right">
+          <div class="epaper-debug__status-line" data-line="status-line"></div>
           <div class="epaper-debug__message">
             <div data-line="msg-main"></div>
             <div class="epaper-debug__message-sub" data-line="msg-sub"></div>
@@ -1190,6 +1192,7 @@
     const topBatEl = panel.querySelector('[data-top="bat"]');
     const topUpEl = panel.querySelector('[data-top="up"]');
     const faceEl = panel.querySelector(".epaper-debug__face");
+    const statusLineEl = panel.querySelector('[data-line="status-line"]');
     const msgMainEl = panel.querySelector('[data-line="msg-main"]');
     const msgSubEl = panel.querySelector('[data-line="msg-sub"]');
     const batPercentEl = panel.querySelector('[data-line="bat-percent"]');
@@ -1226,8 +1229,9 @@
       topWifiEl.textContent = `WIFI ${wifiShort}`;
       topBatEl.textContent = `BAT ${battery}%`;
       topUpEl.textContent = `UP ${upText}`;
-      msgMainEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
-      msgSubEl.textContent = `STATE ${status}`;
+      statusLineEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
+      msgMainEl.textContent = `STATE ${status}`;
+      msgSubEl.textContent = `SSID ${ssid}`;
       batPercentEl.textContent = `${battery}%`;
       batFillEl.style.width = `${battery}%`;
       memEl.textContent = `${mem}%`;

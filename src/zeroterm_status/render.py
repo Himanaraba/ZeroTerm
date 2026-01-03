@@ -231,14 +231,14 @@ def _draw_face(draw, box, mood: str) -> None:
     x0, y0, x1, y1 = box
     width = max(1, x1 - x0)
     height = max(1, y1 - y0)
-    pad = max(2, int(min(width, height) * 0.08))
+    pad = max(2, int(min(width, height) * 0.06))
     head = (x0 + pad, y0 + pad, x1 - pad, y1 - pad)
     draw.ellipse(head, outline=0)
 
     center_x = (x0 + x1) // 2
-    eye_y = y0 + int(height * 0.42)
-    eye_dx = int(width * 0.18)
-    eye_radius = max(2, int(min(width, height) * 0.08))
+    eye_y = y0 + int(height * 0.38)
+    eye_dx = int(width * 0.22)
+    eye_radius = max(2, int(min(width, height) * 0.11))
 
     left_eye = (center_x - eye_dx, eye_y)
     right_eye = (center_x + eye_dx, eye_y)
@@ -276,38 +276,17 @@ def _draw_face(draw, box, mood: str) -> None:
         _draw_eye_open(draw, left_eye, eye_radius)
         _draw_eye_open(draw, right_eye, eye_radius)
 
-    mouth_width = int(width * 0.34)
-    mouth_height = int(height * 0.18)
+    mouth_width = int(width * 0.26)
+    mouth_height = int(height * 0.12)
     mouth_x0 = center_x - mouth_width // 2
-    mouth_y0 = y0 + int(height * 0.58)
+    mouth_y0 = y0 + int(height * 0.62)
     _draw_mouth(
         draw,
         (mouth_x0, mouth_y0, mouth_x0 + mouth_width, mouth_y0 + mouth_height),
         mood,
     )
 
-    if mood in {"happy", "wink"}:
-        blush_y = y0 + int(height * 0.58)
-        blush_dx = int(width * 0.28)
-        blush_r = max(1, eye_radius // 2)
-        draw.ellipse(
-            (
-                center_x - blush_dx - blush_r,
-                blush_y - blush_r,
-                center_x - blush_dx + blush_r,
-                blush_y + blush_r,
-            ),
-            outline=0,
-        )
-        draw.ellipse(
-            (
-                center_x + blush_dx - blush_r,
-                blush_y - blush_r,
-                center_x + blush_dx + blush_r,
-                blush_y + blush_r,
-            ),
-            outline=0,
-        )
+    # keep the face clean for low-resolution e-ink
 
 
 def render_lines(lines: Iterable[str], config: RenderConfig):
@@ -366,11 +345,11 @@ def render_status(
         raise RuntimeError("Pillow font unavailable.")
 
     margin = config.margin
-    header_height = min(config.height, max(14, _text_height(font_header) + 4))
-    footer_height = min(config.height, max(12, _text_height(font_header) + 3))
+    header_height = min(config.height, max(12, _text_height(font_header) + 2))
+    footer_height = min(config.height, max(12, _text_height(font_header) + 2))
 
     draw.rectangle((0, 0, config.width - 1, config.height - 1), outline=0)
-    draw.rectangle((0, 0, config.width - 1, header_height), fill=0)
+    draw.line((0, header_height, config.width - 1, header_height), fill=0)
 
     status_text = status.strip().upper() or "READY"
     wifi_state, wifi_ssid = _split_wifi_text(wifi)
@@ -384,22 +363,19 @@ def render_status(
         f"BAT {battery_short}",
         f"UP {uptime_text}",
     ]
-    segment_count = len(segments)
-    usable_width = config.width - 2
-    segment_width = max(1, usable_width // segment_count)
+    weights = [1.6, 1.1, 0.9, 1.2]
+    header_width = max(1, config.width - margin * 2)
+    total_weight = sum(weights)
+    col_widths = [int(header_width * w / total_weight) for w in weights]
+    col_widths[-1] = header_width - sum(col_widths[:-1])
     header_text_y = max(0, (header_height - _text_height(font_header)) // 2)
-    for index, segment in enumerate(segments):
-        x0 = 1 + index * segment_width
-        x1 = (
-            1 + (index + 1) * segment_width
-            if index < segment_count - 1
-            else config.width - 1
-        )
-        text = _fit_text(draw, segment, font_header, x1 - x0 - 4)
-        draw.text((x0 + 2, header_text_y), text, font=font_header, fill=255)
+    x = margin
+    for segment, col_width in zip(segments, col_widths):
+        text = _fit_text(draw, segment, font_header, col_width - 2)
+        draw.text((x, header_text_y), text, font=font_header, fill=0)
+        x += col_width
 
     footer_top = config.height - footer_height
-    draw.rectangle((0, footer_top, config.width - 1, config.height - 1), fill=255)
     draw.line((0, footer_top, config.width - 1, footer_top), fill=0)
 
     footer_left = f"WIFI {wifi_ssid or _short_wifi_state(wifi_state)}"
@@ -419,9 +395,10 @@ def render_status(
     body_bottom = footer_top - 2
     content_width = config.width - margin * 2
     gap = 6
-    left_width = min(92, max(70, int(content_width * 0.38)))
-    right_width = max(60, content_width - left_width - gap)
-    if left_width + gap + right_width > content_width:
+    right_width = max(90, int(content_width * 0.38))
+    left_width = content_width - right_width - gap
+    if left_width < 80:
+        left_width = 80
         right_width = max(60, content_width - left_width - gap)
 
     left_x0 = margin
@@ -429,22 +406,24 @@ def render_status(
     right_x0 = left_x1 + gap
     right_x1 = right_x0 + right_width
 
-    draw.rectangle((left_x0, body_top, left_x1, body_bottom), outline=0)
-    draw.rectangle((right_x0, body_top, right_x1, body_bottom), outline=0)
+    row1_y = body_top
+    name_text = _fit_text(draw, "zeroterm>", font_body, left_width - 4)
+    draw.text((left_x0, row1_y), name_text, font=font_body, fill=0)
+
+    status_line = _fit_text(draw, _status_message(status_text), font_body, right_width - 4)
+    draw.text((right_x0, row1_y), status_line, font=font_body, fill=0)
+
+    row1_height = _text_height(font_body) + 2
 
     label_height = _text_height(font_small)
     bar_height = max(6, label_height // 2 + 2)
     battery_block = label_height + bar_height + 6
-
-    name_text = _fit_text(draw, "zeroterm>", font_body, left_width - 8)
-    name_y = body_top + 3
-    draw.text((left_x0 + 4, name_y), name_text, font=font_body, fill=0)
-    name_block = _text_height(font_body) + 4
+    face_top = row1_y + row1_height + 2
 
     face_box = (
-        left_x0 + 4,
-        name_y + name_block,
-        left_x1 - 4,
+        left_x0 + 2,
+        face_top,
+        left_x1 - 2,
         body_bottom - battery_block - 4,
     )
     face_size = min(face_box[2] - face_box[0], face_box[3] - face_box[1])
@@ -469,25 +448,18 @@ def render_status(
     bar_box = (left_x0 + 4, bar_y, left_x1 - 6, bar_y + bar_height)
     _draw_battery_bar(draw, bar_box, battery_percent)
 
-    message_x = right_x0 + 4
-    message_y = body_top + 4
-    message_lines = _wrap_text(
-        draw,
-        _status_message(status_text),
-        font_body,
-        right_width - 8,
-        max_lines=2,
-    )
-    for line in message_lines:
-        draw.text((message_x, message_y), line, font=font_body, fill=0)
-        message_y += _text_height(font_body) + 2
-    message_secondary = _fit_text(draw, f"STATE {status_text}", font_small, right_width - 8)
-    draw.text((message_x, message_y), message_secondary, font=font_small, fill=0)
+    message_x = right_x0
+    message_y = face_top
+    state_line = _fit_text(draw, f"STATE {status_text}", font_small, right_width - 4)
+    draw.text((message_x, message_y), state_line, font=font_small, fill=0)
     message_y += _text_height(font_small) + 2
+    ssid_line = _fit_text(draw, f"SSID {wifi_ssid or '--'}", font_small, right_width - 4)
+    draw.text((message_x, message_y), ssid_line, font=font_small, fill=0)
+    message_y += _text_height(font_small) + 4
 
     metrics_top = body_bottom - (_text_height(font_body) + _text_height(font_small) + 6)
-    if metrics_top < message_y + 2:
-        metrics_top = message_y + 2
+    if metrics_top < message_y:
+        metrics_top = message_y
     metric_labels = [("MEM", mem), ("CPU", cpu), ("TMP", temp)]
     columns = 3
     inner_width = right_width - 8
