@@ -3,11 +3,14 @@ from __future__ import annotations
 import json
 import logging
 import os
+import select
 import signal
 import socket
 import threading
 import time
-from urllib.parse import urlsplit
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 from .config import Config
 from .http_utils import read_http_request, send_response, serve_static
@@ -25,6 +28,28 @@ from .websocket import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SessionContext:
+    pid: int
+    master_fd: int
+    session_id: str | None
+    persistent: bool
+    log_path: Path | None
+
+
+@dataclass
+class StoredSession:
+    pid: int
+    master_fd: int
+    attached: bool
+    last_detach: float
+    log_path: Path | None
+
+
+_SESSIONS: dict[str, StoredSession] = {}
+_SESSIONS_LOCK = threading.Lock()
 
 
 def run_server(config: Config) -> None:
@@ -60,11 +85,17 @@ def _handle_client(conn: socket.socket, addr: tuple[str, int], config: Config) -
                 if not _is_ws_path(request.target):
                     _send_text(conn, 404, b"Not Found")
                     return
+                session_id = _extract_session_id(request.target)
+                if config.session_resume and session_id:
+                    _prune_sessions(config.session_ttl)
+                    if _session_is_attached(session_id):
+                        _send_text(conn, 409, b"Session Busy")
+                        return
                 if not _websocket_handshake(conn, request.headers):
                     _send_text(conn, 400, b"Bad Request")
                     return
                 logger.info("WebSocket connected from %s:%s", addr[0], addr[1])
-                _run_ws_session(conn, config)
+                _run_ws_session(conn, config, session_id)
                 return
 
             serve_static(conn, request.target, config.static_dir)
@@ -95,6 +126,27 @@ def _is_ws_path(target: str) -> bool:
     return urlsplit(target).path == "/ws"
 
 
+def _extract_session_id(target: str) -> str | None:
+    parsed = urlsplit(target)
+    if parsed.path != "/ws":
+        return None
+    params = parse_qs(parsed.query)
+    raw = params.get("session", [None])[0]
+    return _sanitize_session_id(raw)
+
+
+def _sanitize_session_id(value: str | None) -> str | None:
+    if not value:
+        return None
+    value = value.strip()
+    if not (1 <= len(value) <= 64):
+        return None
+    for char in value:
+        if not (char.isalnum() or char in {"-", "_"}):
+            return None
+    return value
+
+
 def _websocket_handshake(conn: socket.socket, headers: dict[str, str]) -> bool:
     key = headers.get("sec-websocket-key")
     if not key:
@@ -114,9 +166,15 @@ def _websocket_handshake(conn: socket.socket, headers: dict[str, str]) -> bool:
     return True
 
 
-def _run_ws_session(conn: socket.socket, config: Config) -> None:
-    pid, master_fd = spawn_pty(config.shell, config.term, config.cwd)
+def _run_ws_session(conn: socket.socket, config: Config, session_id: str | None) -> None:
+    session = _attach_or_create_session(session_id, config)
+    if session is None:
+        conn.sendall(build_close_frame())
+        return
+    pid = session.pid
+    master_fd = session.master_fd
     resize_pty(master_fd, pid, 24, 80)
+    log_handle = _open_session_log(session)
     ws_buffer = WebSocketBuffer()
     stop_event = threading.Event()
 
@@ -152,10 +210,15 @@ def _run_ws_session(conn: socket.socket, config: Config) -> None:
     def pty_to_ws() -> None:
         try:
             while not stop_event.is_set():
+                ready, _, _ = select.select([master_fd], [], [], 0.5)
+                if not ready:
+                    continue
                 data = os.read(master_fd, 4096)
                 if not data:
                     break
                 conn.sendall(build_binary_frame(data))
+                if log_handle:
+                    log_handle.write(data)
         except OSError:
             pass
         finally:
@@ -169,7 +232,142 @@ def _run_ws_session(conn: socket.socket, config: Config) -> None:
     thread_out.join()
 
     stop_event.set()
-    _cleanup_pty(pid, master_fd)
+    if log_handle:
+        try:
+            log_handle.close()
+        except OSError:
+            pass
+    _finalize_session(session)
+
+
+def _session_is_attached(session_id: str) -> bool:
+    with _SESSIONS_LOCK:
+        session = _SESSIONS.get(session_id)
+        return bool(session and session.attached)
+
+
+def _prune_sessions(ttl_seconds: int) -> None:
+    if ttl_seconds <= 0:
+        return
+    now = time.monotonic()
+    expired: list[tuple[str, StoredSession]] = []
+    with _SESSIONS_LOCK:
+        for session_id, session in list(_SESSIONS.items()):
+            if session.attached:
+                continue
+            if now - session.last_detach >= ttl_seconds:
+                expired.append((session_id, session))
+                del _SESSIONS[session_id]
+    for _, session in expired:
+        _cleanup_pty(session.pid, session.master_fd)
+
+
+def _attach_or_create_session(session_id: str | None, config: Config) -> SessionContext | None:
+    if not config.session_resume or not session_id:
+        pid, master_fd = spawn_pty(config.shell, config.term, config.cwd)
+        return SessionContext(
+            pid=pid,
+            master_fd=master_fd,
+            session_id=None,
+            persistent=False,
+            log_path=_make_log_path(config, None, pid),
+        )
+
+    with _SESSIONS_LOCK:
+        session = _SESSIONS.get(session_id)
+        if session and session.attached:
+            return None
+        if session:
+            session.attached = True
+            session.last_detach = 0.0
+            return SessionContext(
+                pid=session.pid,
+                master_fd=session.master_fd,
+                session_id=session_id,
+                persistent=True,
+                log_path=session.log_path,
+            )
+
+    pid, master_fd = spawn_pty(config.shell, config.term, config.cwd)
+    log_path = _make_log_path(config, session_id, pid)
+    new_session = StoredSession(
+        pid=pid,
+        master_fd=master_fd,
+        attached=True,
+        last_detach=0.0,
+        log_path=log_path,
+    )
+    with _SESSIONS_LOCK:
+        existing = _SESSIONS.get(session_id)
+        if existing and existing.attached:
+            _cleanup_pty(pid, master_fd)
+            return None
+        if existing and not existing.attached:
+            _cleanup_pty(pid, master_fd)
+            existing.attached = True
+            existing.last_detach = 0.0
+            return SessionContext(
+                pid=existing.pid,
+                master_fd=existing.master_fd,
+                session_id=session_id,
+                persistent=True,
+                log_path=existing.log_path,
+            )
+        _SESSIONS[session_id] = new_session
+    return SessionContext(
+        pid=pid,
+        master_fd=master_fd,
+        session_id=session_id,
+        persistent=True,
+        log_path=log_path,
+    )
+
+
+def _make_log_path(config: Config, session_id: str | None, pid: int) -> Path | None:
+    if not config.session_log_dir:
+        return None
+    session_tag = session_id or "anonymous"
+    safe_tag = session_tag[:32]
+    timestamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    filename = f"zeroterm-session-{timestamp}-{safe_tag}-{pid}.log"
+    return config.session_log_dir / filename
+
+
+def _open_session_log(session: SessionContext):
+    if session.log_path is None:
+        return None
+    try:
+        session.log_path.parent.mkdir(parents=True, exist_ok=True)
+        return open(session.log_path, "ab", buffering=0)
+    except OSError:
+        logger.warning("Failed to open session log %s", session.log_path)
+        return None
+
+
+def _finalize_session(session: SessionContext) -> None:
+    if not session.persistent or not session.session_id:
+        _cleanup_pty(session.pid, session.master_fd)
+        return
+    if not _is_child_alive(session.pid):
+        _cleanup_pty(session.pid, session.master_fd)
+        with _SESSIONS_LOCK:
+            _SESSIONS.pop(session.session_id, None)
+        return
+    with _SESSIONS_LOCK:
+        stored = _SESSIONS.get(session.session_id)
+        if stored:
+            stored.attached = False
+            stored.last_detach = time.monotonic()
+
+
+def _is_child_alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        waited, _ = os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        return False
+    return waited == 0
 
 
 def _cleanup_pty(pid: int, master_fd: int) -> None:

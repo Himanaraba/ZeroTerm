@@ -9,6 +9,32 @@
 
   const encoder = new TextEncoder();
   const decoder = new TextDecoder("utf-8");
+  const SESSION_KEY = "zeroterm-session-id";
+
+  const generateSessionId = () => {
+    if (window.crypto && window.crypto.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes)
+        .map((value) => value.toString(16).padStart(2, "0"))
+        .join("");
+    }
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  };
+
+  const getSessionId = () => {
+    try {
+      const existing = window.localStorage.getItem(SESSION_KEY);
+      if (existing) {
+        return existing;
+      }
+      const next = generateSessionId();
+      window.localStorage.setItem(SESSION_KEY, next);
+      return next;
+    } catch (error) {
+      return null;
+    }
+  };
 
   const ANSI_COLORS = [
     "#1d2127",
@@ -727,9 +753,11 @@
     socket.send(payload);
   };
 
+  const sessionId = getSessionId();
   const connect = () => {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const url = `${protocol}://${location.host}/ws`;
+    const sessionParam = sessionId ? `?session=${encodeURIComponent(sessionId)}` : "";
+    const url = `${protocol}://${location.host}/ws${sessionParam}`;
     setStatus("CONNECTING", "warn");
     socket = new WebSocket(url);
     socket.binaryType = "arraybuffer";

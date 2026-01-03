@@ -10,6 +10,7 @@ HTTP_REASONS = {
     400: "Bad Request",
     404: "Not Found",
     405: "Method Not Allowed",
+    409: "Conflict",
     500: "Internal Server Error",
     101: "Switching Protocols",
 }
