@@ -948,25 +948,74 @@
       }
       .epaper-debug__body {
         flex: 1;
-        padding: 4px 8px 2px;
+        padding: 6px;
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 6px;
+      }
+      .epaper-debug__panel {
+        border: 1px solid #111;
+        padding: 6px;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 6px;
+      }
+      .epaper-debug__face-wrap {
+        flex: 1;
+        border: 1px solid #111;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
       }
       .epaper-debug__face {
         font-size: 20px;
-        text-align: center;
         line-height: 1;
-        margin: 4px 0 2px;
       }
-      .epaper-debug__grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 2px 8px;
+      .epaper-debug__battery {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
         font-size: 10px;
-        line-height: 1.2;
       }
-      .epaper-debug__line {
+      .epaper-debug__battery-row {
+        display: flex;
+        justify-content: space-between;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .epaper-debug__battery-bar {
+        position: relative;
+        height: 6px;
+        border: 1px solid #111;
+        background: #f4f3e8;
+      }
+      .epaper-debug__battery-fill {
+        position: absolute;
+        inset: 0;
+        width: 0%;
+        background: #111;
+      }
+      .epaper-debug__right {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+      }
+      .epaper-debug__card {
+        border: 1px solid #111;
+        padding: 4px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        font-size: 10px;
+        line-height: 1.1;
+      }
+      .epaper-debug__label {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-size: 9px;
+      }
+      .epaper-debug__value {
+        font-size: 11px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -997,14 +1046,45 @@
         <span class="epaper-debug__status"></span>
       </div>
       <div class="epaper-debug__body">
-        <div class="epaper-debug__face"></div>
-        <div class="epaper-debug__grid">
-          <div class="epaper-debug__line" data-line="ip"></div>
-          <div class="epaper-debug__line" data-line="bat"></div>
-          <div class="epaper-debug__line" data-line="wifi"></div>
-          <div class="epaper-debug__line" data-line="temp"></div>
-          <div class="epaper-debug__line" data-line="up"></div>
-          <div class="epaper-debug__line" data-line="load"></div>
+        <div class="epaper-debug__panel">
+          <div class="epaper-debug__face-wrap">
+            <div class="epaper-debug__face"></div>
+          </div>
+          <div class="epaper-debug__battery">
+            <div class="epaper-debug__battery-row">
+              <span>BAT</span>
+              <span data-line="bat-percent"></span>
+            </div>
+            <div class="epaper-debug__battery-bar">
+              <div class="epaper-debug__battery-fill"></div>
+            </div>
+          </div>
+        </div>
+        <div class="epaper-debug__right">
+          <div class="epaper-debug__card">
+            <div class="epaper-debug__label">IP</div>
+            <div class="epaper-debug__value" data-line="ip"></div>
+          </div>
+          <div class="epaper-debug__card">
+            <div class="epaper-debug__label">BAT</div>
+            <div class="epaper-debug__value" data-line="bat"></div>
+          </div>
+          <div class="epaper-debug__card">
+            <div class="epaper-debug__label">WIFI</div>
+            <div class="epaper-debug__value" data-line="wifi"></div>
+          </div>
+          <div class="epaper-debug__card">
+            <div class="epaper-debug__label">TMP</div>
+            <div class="epaper-debug__value" data-line="temp"></div>
+          </div>
+          <div class="epaper-debug__card">
+            <div class="epaper-debug__label">UP</div>
+            <div class="epaper-debug__value" data-line="up"></div>
+          </div>
+          <div class="epaper-debug__card">
+            <div class="epaper-debug__label">LOAD</div>
+            <div class="epaper-debug__value" data-line="load"></div>
+          </div>
         </div>
       </div>
       <div class="epaper-debug__hint">debug only</div>
@@ -1016,6 +1096,8 @@
     const ipEl = panel.querySelector('[data-line="ip"]');
     const wifiEl = panel.querySelector('[data-line="wifi"]');
     const batEl = panel.querySelector('[data-line="bat"]');
+    const batPercentEl = panel.querySelector('[data-line="bat-percent"]');
+    const batFillEl = panel.querySelector(".epaper-debug__battery-fill");
     const tempEl = panel.querySelector('[data-line="temp"]');
     const upEl = panel.querySelector('[data-line="up"]');
     const loadEl = panel.querySelector('[data-line="load"]');
@@ -1038,12 +1120,14 @@
       const faceText = battery <= 20 ? "(;_;)" : face;
       statusEl.textContent = status;
       faceEl.textContent = faceText;
-      ipEl.textContent = `IP ${ip}`;
-      wifiEl.textContent = `WIFI ${wifiState} ${ssid}`;
-      batEl.textContent = `BAT ${battery}%`;
-      tempEl.textContent = `TMP ${temp}C`;
-      loadEl.textContent = `LOAD ${load}`;
-      upEl.textContent = `UP ${upHours}h${upMinutes}m`;
+      ipEl.textContent = ip;
+      wifiEl.textContent = `${wifiState} ${ssid}`;
+      batEl.textContent = `${battery}%`;
+      batPercentEl.textContent = `${battery}%`;
+      batFillEl.style.width = `${battery}%`;
+      tempEl.textContent = `${temp}C`;
+      loadEl.textContent = load;
+      upEl.textContent = `${upHours}h${upMinutes}m`;
     };
 
     render();

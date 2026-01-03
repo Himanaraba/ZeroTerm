@@ -73,6 +73,47 @@ def _fit_text(draw, text: str, font, max_width: int) -> str:
     return ""
 
 
+def _center_text(draw, text: str, font, box, fill: int = 0) -> None:
+    x0, y0, x1, y1 = box
+    text_width = _text_width(draw, text, font)
+    text_height = _text_height(font)
+    x = x0 + max(0, (x1 - x0 - text_width) // 2)
+    y = y0 + max(0, (y1 - y0 - text_height) // 2)
+    draw.text((x, y), text, font=font, fill=fill)
+
+
+def _draw_battery_bar(draw, box, percent: int | None) -> None:
+    x0, y0, x1, y1 = box
+    if x1 <= x0 or y1 <= y0:
+        return
+    draw.rectangle((x0, y0, x1, y1), outline=0, fill=255)
+    if percent is None:
+        return
+    pct = max(0, min(100, percent))
+    inner_x0 = x0 + 1
+    inner_y0 = y0 + 1
+    inner_x1 = x1 - 1
+    inner_y1 = y1 - 1
+    if inner_x1 <= inner_x0 or inner_y1 <= inner_y0:
+        return
+    fill_width = int((inner_x1 - inner_x0) * pct / 100)
+    draw.rectangle((inner_x0, inner_y0, inner_x0 + fill_width, inner_y1), fill=0)
+
+
+def _draw_card(draw, box, label: str, value: str, font_label, font_value) -> None:
+    x0, y0, x1, y1 = box
+    draw.rectangle((x0, y0, x1, y1), outline=0)
+    label_text = _fit_text(draw, label, font_label, x1 - x0 - 6)
+    value_text = _fit_text(draw, value, font_value, x1 - x0 - 6)
+    label_y = y0 + 2
+    draw.text((x0 + 3, label_y), label_text, font=font_label, fill=0)
+    separator_y = label_y + _text_height(font_label) + 1
+    value_y = y1 - _text_height(font_value) - 2
+    if separator_y + 1 < value_y:
+        draw.line((x0 + 3, separator_y, x1 - 3, separator_y), fill=0)
+    draw.text((x0 + 3, value_y), value_text, font=font_value, fill=0)
+
+
 def render_lines(lines: Iterable[str], config: RenderConfig):
     if Image is None or ImageDraw is None or ImageFont is None:
         raise RuntimeError("Pillow is required for e-paper rendering.")
@@ -145,40 +186,93 @@ def render_status(
         fill=255,
     )
 
+    body_top = header_height + 3
+    body_bottom = config.height - margin
+    content_width = config.width - margin * 2
+    gap = 6
+    left_width = min(96, max(72, int(content_width * 0.36)))
+    if content_width - left_width - gap < 110:
+        left_width = max(60, content_width - gap - 110)
+    right_width = max(60, content_width - left_width - gap)
+
+    left_x0 = margin
+    left_x1 = left_x0 + left_width
+    right_x0 = left_x1 + gap
+    right_x1 = right_x0 + right_width
+
+    draw.rectangle((left_x0, body_top, left_x1, body_bottom), outline=0)
+    draw.rectangle((right_x0, body_top, right_x1, body_bottom), outline=0)
+
     face_text = _pick_face(status_text, battery_percent)
-    face_width = _text_width(draw, face_text, font_face)
-    face_x = max(margin, (config.width - face_width) // 2)
-    face_y = header_height + 4
-    draw.text((face_x, face_y), face_text, font=font_face, fill=0)
+    label_height = _text_height(font_small)
+    bar_height = max(6, label_height // 2 + 2)
+    battery_block = label_height + bar_height + 6
 
-    line_height = _text_height(font_body)
-    stats_top = face_y + _text_height(font_face) + 4
-    col_gap = 8
-    col_width = max(1, (config.width - margin * 2 - col_gap) // 2)
-    left_x = margin
-    right_x = margin + col_width + col_gap
+    face_box = (
+        left_x0 + 4,
+        body_top + 4,
+        left_x1 - 4,
+        body_bottom - battery_block - 4,
+    )
+    face_size = min(face_box[2] - face_box[0], face_box[3] - face_box[1])
+    face_box = (
+        face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2),
+        face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2),
+        face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2) + face_size,
+        face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2) + face_size,
+    )
+    if face_box[2] > face_box[0] and face_box[3] > face_box[1]:
+        draw.ellipse(face_box, outline=0)
+        _center_text(draw, face_text, font_face, face_box, fill=0)
 
-    rows = [
-        (f"IP {ip}", f"BAT {battery}"),
-        (f"WIFI {wifi}", f"TMP {temp}"),
-        (f"UP {uptime}", f"LOAD {load}"),
+    bat_label = "BAT"
+    bat_value = f"{battery_percent}%" if battery_percent is not None else "--"
+    bat_y = body_bottom - battery_block + 2
+    draw.text((left_x0 + 4, bat_y), bat_label, font=font_small, fill=0)
+    bat_value_width = _text_width(draw, bat_value, font_small)
+    draw.text((left_x1 - 4 - bat_value_width, bat_y), bat_value, font=font_small, fill=0)
+
+    bar_y = bat_y + label_height + 2
+    bar_box = (left_x0 + 4, bar_y, left_x1 - 6, bar_y + bar_height)
+    _draw_battery_bar(draw, bar_box, battery_percent)
+
+    grid_top = body_top + 2
+    grid_bottom = body_bottom - 2
+    grid_height = max(1, grid_bottom - grid_top)
+    cols = 2
+    rows = 3
+    gap_x = 6
+    gap_y = 4
+    cell_width = max(1, (right_width - gap_x) // cols)
+    cell_height = max(1, (grid_height - gap_y * (rows - 1)) // rows)
+
+    cards = [
+        ("IP", ip),
+        ("BAT", battery),
+        ("WIFI", wifi),
+        ("TMP", temp),
+        ("UP", uptime),
+        ("LOAD", load),
     ]
 
-    y = stats_top
-    for left, right in rows:
-        if y + line_height > config.height - margin:
-            break
-        left_text = _fit_text(draw, left, font_body, col_width)
-        right_text = _fit_text(draw, right, font_body, col_width)
-        draw.text((left_x, y), left_text, font=font_body, fill=0)
-        draw.text((right_x, y), right_text, font=font_body, fill=0)
-        y += line_height + config.line_gap
+    card_index = 0
+    for row in range(rows):
+        for col in range(cols):
+            if card_index >= len(cards):
+                break
+            x0 = right_x0 + col * (cell_width + gap_x)
+            y0 = grid_top + row * (cell_height + gap_y)
+            x1 = x0 + cell_width
+            y1 = y0 + cell_height
+            label, value = cards[card_index]
+            _draw_card(draw, (x0, y0, x1, y1), label, value, font_small, font_body)
+            card_index += 1
 
     if updated:
         updated_text = _fit_text(draw, updated, font_small, config.width - margin * 2)
         updated_width = _text_width(draw, updated_text, font_small)
         updated_y = config.height - margin - _text_height(font_small)
-        if updated_y > y:
+        if updated_y > body_top:
             draw.text(
                 (config.width - margin - updated_width, updated_y),
                 updated_text,
