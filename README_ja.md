@@ -43,7 +43,7 @@ curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/qu
 ```
 curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/full_install.sh | sudo bash
 ```
-- Windows で UI 確認: `python test\app.py`。
+- Windows で UI 確認: `python mock_ui\app.py`。
 
 ## Status API & Power Presets
 - GET `/api/status` でバッテリーや電源状態を取得

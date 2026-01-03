@@ -16,7 +16,7 @@ pip install -r requirements.txt
 From the repo root:
 
 ```
-python test\app.py
+python mock_ui\app.py
 ```
 
 Open:

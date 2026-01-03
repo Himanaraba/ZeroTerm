@@ -42,7 +42,7 @@ curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/qu
 ```
 curl -fsSL https://raw.githubusercontent.com/Himanaraba/ZeroTerm/main/scripts/full_install.sh | sudo bash
 ```
-- For UI preview on Windows: `python test\app.py`.
+- For UI preview on Windows: `python mock_ui\app.py`.
 
 ## Status API & Power Presets
 - GET `/api/status` for battery percent, power state, and active profile.
