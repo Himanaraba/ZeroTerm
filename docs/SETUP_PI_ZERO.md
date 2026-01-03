@@ -36,7 +36,7 @@ network={
 ## 3) Install dependencies
 ```
 sudo apt update
-sudo apt install -y python3 git
+sudo apt install -y python3 git tmux
 ```
 
 Optional (e-Paper status display):
@@ -85,6 +85,11 @@ sudo nano /etc/zeroterm/zeroterm.env
 
 See docs/CONFIG_EXAMPLES.md for ready-to-use settings.
 
+Optional (tmux session on connect):
+```
+ZEROTERM_SHELL_CMD=tmux new -A -s zeroterm
+```
+
 If you use Waveshare 2.13, set:
 ```
 ZEROTERM_EPAPER_LIB=/opt/zeroterm/third_party/e-Paper/RaspberryPi_JetsonNano/python/lib
@@ -124,6 +129,21 @@ sudo zeroterm-power balanced
 sudo zeroterm-power performance
 sudo zeroterm-power default
 ```
+
+Monitor mode helper:
+```
+sudo zeroterm-monitor on
+sudo zeroterm-monitor off
+sudo zeroterm-monitor status
+```
+Interface selection:
+```
+ZEROTERM_MONITOR_IFACE=wlan0
+```
+
+Web UI buttons:
+- MON ON/OFF sends zeroterm-monitor (or ip/iw fallback).
+- WIFITE/HCXDUMP/BETTERCAP buttons type commands into the PTY.
 
 ## Optional: e-Paper status display
 - Enable SPI (raspi-config or boot config) and reboot.

@@ -25,6 +25,7 @@ ZeroTerm はコマンドを置き換えたり Web 化しません。
 - ブラウザから使えるフルの Kali CLI
 - フレームワークなしの HTML/CSS/JS 端末
 - e-Paper の状態表示（バッテリー/通信/稼働）
+- モニターモード切替とツールのショートカット
 - Windows での UI プレビュー（mock）
 
 ## Hardware / OS

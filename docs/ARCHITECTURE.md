@@ -17,13 +17,14 @@ A real PTY is spawned on the Pi and raw bytes flow both directions.
 4. PTY output streams to the browser as binary frames.
 5. Browser input streams to the PTY as binary frames.
 6. Resize events are sent as JSON control messages.
-7. Browser polls /api/status for battery and power telemetry.
+7. Browser polls /api/status for battery, power, and Wi-Fi telemetry.
 8. Power preset changes are sent to /api/power and applied by zeroterm-status.
 
 ## Protocol
 - WebSocket binary frames: raw PTY bytes
 - WebSocket text frames: JSON control messages
 - HTTP endpoints: /api/status and /api/power
+  - /api/status returns battery + Wi-Fi (iface/state/mode/ssid/channel/packets).
 
 Resize control message (client -> server):
 
@@ -46,6 +47,9 @@ Supported behavior:
 Not implemented:
 - Advanced DEC modes beyond the subset above
 - Additional SGR attributes (underline/italic/blink/strike)
+
+UI notes:
+- Tool/monitor buttons simply send commands into the PTY.
 
 ## Status / e-Paper Rendering
 - zeroterm-status reads system metrics and renders the 2.13-inch layout.

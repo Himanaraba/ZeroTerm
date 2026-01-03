@@ -23,6 +23,7 @@ It forwards raw bytes to a real PTY, so the experience matches SSH.
 - Full Kali Linux CLI in a browser
 - Framework-free HTML/CSS/JS terminal UI
 - e-Paper renderer for battery, Wi-Fi, and system health
+- Monitor mode toggle + quick tool buttons
 - Optional offline install bundle
 - Windows mock UI for layout checks
 

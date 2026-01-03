@@ -7,6 +7,9 @@ ZEROTERM_BIND=0.0.0.0
 ZEROTERM_PORT=8080
 ZEROTERM_SHELL=/bin/bash
 
+## tmux session on connect
+ZEROTERM_SHELL_CMD=tmux new -A -s zeroterm
+
 ## Status + e-Paper (Waveshare)
 ZEROTERM_STATUS_IFACE=wlan0
 ZEROTERM_EPAPER_LIB=/opt/zeroterm/third_party/e-Paper/RaspberryPi_JetsonNano/python/lib
@@ -38,3 +41,6 @@ ZEROTERM_UPDATE_BRANCH=main
 
 ## RTL8821AU
 ZEROTERM_RTL8821AU_IFACE=wlan1
+
+## Monitor toggle (Web UI / CLI helper)
+ZEROTERM_MONITOR_IFACE=wlan0
