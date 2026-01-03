@@ -978,81 +978,18 @@
         padding: 4px;
       }
       .epaper-debug__face {
-        position: relative;
         width: 100%;
         height: 100%;
         border: 1px solid #111;
         border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        letter-spacing: 0.08em;
       }
-      .epaper-debug__eye {
-        position: absolute;
-        top: 32%;
-        width: 8px;
-        height: 8px;
-        border: 1px solid #111;
-        border-radius: 50%;
-      }
-      .epaper-debug__eye::after {
-        content: "";
-        position: absolute;
-        inset: 2px;
-        background: #111;
-        border-radius: 50%;
-      }
-      .epaper-debug__eye.left {
-        left: 26%;
-      }
-      .epaper-debug__eye.right {
-        right: 26%;
-      }
-      .epaper-debug__mouth {
-        position: absolute;
-        bottom: 22%;
-        left: 50%;
-        width: 24px;
-        height: 12px;
-        border: 2px solid transparent;
-        border-bottom-color: #111;
-        border-radius: 0 0 999px 999px;
-        transform: translateX(-50%);
-      }
-      .epaper-debug__face.is-sad .epaper-debug__mouth {
-        border-bottom-color: transparent;
-        border-top-color: #111;
-        border-radius: 999px 999px 0 0;
-        bottom: 18%;
-      }
-      .epaper-debug__face.is-wink .epaper-debug__eye.right {
-        height: 2px;
-        border: none;
-        background: #111;
-        top: 36%;
-      }
-      .epaper-debug__face.is-wink .epaper-debug__eye.right::after {
-        display: none;
-      }
-      .epaper-debug__face.is-dead .epaper-debug__eye {
-        border: none;
-      }
-      .epaper-debug__face.is-dead .epaper-debug__eye::after {
-        display: none;
-      }
-      .epaper-debug__face.is-dead .epaper-debug__eye::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-top: 2px solid #111;
-        border-left: 2px solid #111;
-        transform: rotate(45deg);
-      }
-      .epaper-debug__face.is-dead .epaper-debug__eye::after {
-        display: block;
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-top: 2px solid #111;
-        border-left: 2px solid #111;
-        transform: rotate(-45deg);
+      .epaper-debug__face-text {
+        line-height: 1;
       }
       .epaper-debug__battery {
         display: flex;
@@ -1143,9 +1080,7 @@
           <div class="epaper-debug__name">zeroterm&gt;</div>
           <div class="epaper-debug__face-wrap">
             <div class="epaper-debug__face">
-              <div class="epaper-debug__eye left"></div>
-              <div class="epaper-debug__eye right"></div>
-              <div class="epaper-debug__mouth"></div>
+              <div class="epaper-debug__face-text"></div>
             </div>
           </div>
           <div class="epaper-debug__battery">
@@ -1191,7 +1126,7 @@
     const topWifiEl = panel.querySelector('[data-top="wifi"]');
     const topBatEl = panel.querySelector('[data-top="bat"]');
     const topUpEl = panel.querySelector('[data-top="up"]');
-    const faceEl = panel.querySelector(".epaper-debug__face");
+    const faceTextEl = panel.querySelector(".epaper-debug__face-text");
     const statusLineEl = panel.querySelector('[data-line="status-line"]');
     const msgMainEl = panel.querySelector('[data-line="msg-main"]');
     const msgSubEl = panel.querySelector('[data-line="msg-sub"]');
@@ -1219,9 +1154,14 @@
       const cpu = Math.floor(5 + Math.random() * 60);
       const upHours = Math.floor(1 + Math.random() * 9);
       const upMinutes = Math.floor(Math.random() * 59);
-      const mood =
-        status === "DOWN" ? "dead" : battery <= 20 ? "sad" : status === "RUNNING" ? "happy" : "wink";
-      faceEl.className = `epaper-debug__face is-${mood}`;
+      const faceText =
+        status === "DOWN"
+          ? "(x_x)"
+          : battery <= 20
+            ? "(T_T)"
+            : status === "RUNNING"
+              ? "(^_^)"
+              : "(^_~)";
       const wifiShort = wifiState === "DOWN" ? "DN" : wifiState;
       const upText = `${upHours}:${String(upMinutes).padStart(2, "0")}`;
 
@@ -1229,6 +1169,7 @@
       topWifiEl.textContent = `WIFI ${wifiShort}`;
       topBatEl.textContent = `BAT ${battery}%`;
       topUpEl.textContent = `UP ${upText}`;
+      faceTextEl.textContent = faceText;
       statusLineEl.textContent = status === "RUNNING" ? "SESSION LIVE" : "WAITING FOR INPUT";
       msgMainEl.textContent = `STATE ${status}`;
       msgSubEl.textContent = `SSID ${ssid}`;

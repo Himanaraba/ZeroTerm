@@ -341,7 +341,8 @@ def render_status(
     font_header = _load_font(config.font_path, max(9, config.font_size - 4))
     font_body = _load_font(config.font_path, max(10, config.font_size - 2))
     font_small = _load_font(config.font_path, max(8, config.font_size - 6))
-    if font_body is None or font_header is None or font_small is None:
+    font_face = _load_font(config.font_path, max(14, config.font_size + 2))
+    if font_body is None or font_header is None or font_small is None or font_face is None:
         raise RuntimeError("Pillow font unavailable.")
 
     margin = config.margin
@@ -433,9 +434,10 @@ def render_status(
         face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2) + face_size,
         face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2) + face_size,
     )
-    face_mood = _pick_face(status_text, battery_percent)
+    face_text = _pick_face(status_text, battery_percent)
     if face_box[2] > face_box[0] and face_box[3] > face_box[1]:
-        _draw_face(draw, face_box, face_mood)
+        face_text = _fit_text(draw, face_text, font_face, face_box[2] - face_box[0] - 4)
+        _center_text(draw, face_text, font_face, face_box, fill=0)
 
     bat_label = "BAT"
     bat_value = f"{battery_percent}%" if battery_percent is not None else "--"
@@ -501,11 +503,11 @@ def render_status(
 def _pick_face(status_text: str, battery_percent: int | None) -> str:
     status = status_text.strip().upper()
     if status in {"DOWN", "FAILED"}:
-        return "dead"
+        return "(x_x)"
     if battery_percent is not None and battery_percent <= 15:
-        return "sad"
+        return "(T_T)"
     if status == "RUNNING":
-        return "happy"
+        return "(^_^)"
     if status == "READY":
-        return "wink"
-    return "happy"
+        return "(^_~)"
+    return "(^_^)"
