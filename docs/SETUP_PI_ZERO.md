@@ -207,6 +207,8 @@ Core:
   Seconds to keep a detached PTY session alive.
 
 Status / e-Paper:
+- ZEROTERM_STATUS_PROFILE (default: empty)
+  Power preset for status updates (eco, balanced, performance).
 - ZEROTERM_STATUS_INTERVAL (default: 30)
   Refresh interval in seconds for the e-Paper status display.
 - ZEROTERM_STATUS_IFACE (default: wlan0)
@@ -235,6 +237,26 @@ Status / e-Paper:
   If set, sleeps longer when the payload is unchanged.
 - ZEROTERM_STATUS_WIFI_SSID (default: 1)
   When 0, skip SSID reads to reduce work.
+- ZEROTERM_BATTERY_LOG_PATH (default: empty)
+  Optional CSV path for battery history logging.
+- ZEROTERM_BATTERY_LOG_INTERVAL (default: 0)
+  Interval in seconds for battery log entries.
+- ZEROTERM_POWER_LOG_PATH (default: empty)
+  Optional log file for power state events.
+
+Update checks:
+- ZEROTERM_UPDATE_CHECK (default: 0)
+  Enable update availability checks.
+- ZEROTERM_UPDATE_INTERVAL (default: 3600)
+  Update check interval in seconds.
+- ZEROTERM_UPDATE_PATH (default: /opt/zeroterm)
+  Repo path to check for updates.
+- ZEROTERM_UPDATE_REMOTE (default: origin)
+  Git remote to compare against.
+- ZEROTERM_UPDATE_BRANCH (default: main)
+  Git branch to compare against.
+- ZEROTERM_UPDATE_FETCH (default: 0)
+  When 1, fetch remote refs before comparing.
 - ZEROTERM_EPAPER_DRIVER (default: waveshare)
   Display backend: waveshare, file, or null.
 - ZEROTERM_EPAPER_MODEL (default: epd2in13_V3)
