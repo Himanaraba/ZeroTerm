@@ -1,7 +1,7 @@
 # Security Notes
 
-ZeroTerm exposes a real terminal without authentication, command restrictions,
-or sandboxing. Treat access to the web UI the same way you treat SSH access.
+ZeroTerm exposes a real terminal without authentication, command restrictions, or
+sandboxing. Treat access to the web UI the same way you treat SSH access.
 
 Recommendations:
 - Run on a trusted or isolated management network.

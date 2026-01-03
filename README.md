@@ -1,177 +1,57 @@
 # ZeroTerm
 
-ZeroTerm is a fully headless, ultra-lightweight Kali Linux terminal system
-for Raspberry Pi Zero 2 W. It exposes a real PTY over the web so an iPad
-(Safari) acts as the keyboard and screen.
+Headless Kali PTY over Web for Raspberry Pi Zero 2 W.
+Version: v1
 
-No display, keyboard, desktop environment, or heavy framework is used.
+ZeroTerm turns a Pi Zero 2 W into a real Kali Linux TTY that you drive from Safari.
+No GUI, no desktop, no framework. The web is just a terminal cable.
 
----
+## Overview
+- Real PTY over WebSocket with zero command filtering
+- Minimal web terminal (ANSI colors + basic VT controls)
+- Optional e-Paper status display for battery and health
+- Status API + power presets for telemetry and tuning
+- systemd-first, boot-and-go operation
 
-## Motivation
-
-Modern security tools and Linux systems are increasingly tied to
-graphical interfaces, large frameworks, and powerful hardware.
-
-ZeroTerm was created with a different philosophy:
-
-- Treat Kali Linux as a service OS, not a desktop OS
-- Eliminate unnecessary layers (GUI, window managers, VNC)
-- Use the web only as a transport layer, not an application platform
-- Make a portable, battery-powered Linux security node
-- Operate through a real CUI, not abstractions
-
-The result is a system that behaves like a true Linux terminal on the network.
-
----
-
-## Core Concept
-
+## Core Idea
 "The web interface is a terminal cable."
 
-ZeroTerm does not:
-- Convert CUI tools into web apps
-- Wrap commands in JSON or REST APIs
-- Restrict available Linux commands
-- Provide a sandboxed or limited shell
+ZeroTerm does not wrap commands, limit features, or replace the CLI.
+It forwards raw bytes to a real PTY, so the experience matches SSH.
 
-Instead:
-- Tools run on a real PTY
-- Input/output is forwarded as raw bytes
-- The experience is equivalent to SSH, but browser-based
-- CUI tools remain unmodified
+## What You Get
+- Full Kali Linux CLI in a browser
+- Framework-free HTML/CSS/JS terminal UI
+- e-Paper renderer for battery, Wi-Fi, and system health
+- Optional offline install bundle
+- Windows mock UI for layout checks
 
----
-
-## Design Goals
-
-- Fully headless operation (no HDMI, keyboard, mouse)
-- 100% CUI-based Kali Linux environment
-- Web-based terminal access (Safari-compatible, no apps)
-- Extremely lightweight for Pi Zero 2 W constraints
-- Portable and battery-powered
-- Clear separation of roles: Web = transport, Linux = execution, CUI = interface
-
----
-
-## What ZeroTerm Is
-
-- A real Linux TTY over the web
-- A headless Kali Linux node
-- A platform for security research and experimentation
-- A system where standard Linux commands work normally
-
-Examples of supported usage:
-- apt install, apt build-dep
-- Kernel module and driver builds
-- ip, iw, rfkill, lsusb
-- Compilation with make
-- Native Kali CUI tools (wifite, aircrack-ng, etc.)
-
-There is no artificial restriction layer.
-
----
-
-## What ZeroTerm Is Not
-
-- A GUI or desktop replacement
-- A web-based command launcher
-- A restricted shell
-- A REST/JSON API service
-- A browser-based IDE
-
----
-
-## Hardware Target
-
+## Hardware / OS
 - Raspberry Pi Zero 2 W (WH is fine)
-- Kali Linux (Lite)
-- External USB Wi-Fi adapter for monitoring/experimentation
-- Built-in Wi-Fi for management and web access
-- PiSugar2 battery module
-- 2.13-inch ePaper display for status only
+- Kali Linux Lite + systemd
+- Built-in Wi-Fi for management, optional external adapter for experiments
+- Optional PiSugar battery + Waveshare 2.13-inch e-Paper
 
-The hardware limits are part of the design.
+## Quick Start
+- Follow docs/SETUP_PI_ZERO.md for the real device.
+- For UI preview on Windows: `python test\app.py`.
 
----
-
-## Operating Model
-
-- Boots directly into a service-based state
-- No interactive login required
-- Core components run as systemd services
-- Always reachable over the web once powered
-
----
-
-## ePaper Philosophy
-
-The ePaper display is not a terminal. It shows:
-- System state (READY / RUNNING / DOWN)
-- IP address for web access
-- Wi-Fi status (and SSID when available)
-- Battery level (and charge state when available)
-- Uptime, temperature, load, CPU, and memory (lightweight health summary)
-- A small status face for quick visual state checks
-
-It does not show logs or TTY output.
-
----
-
-## Software Stack (High Level)
-
-- Kali Linux Lite
-- No X / Wayland / desktop environment
-- Minimal HTML + JavaScript
-- PTY backend with WebSocket transport
-- systemd-managed services
-
----
-
-## Security & Usage
-
-ZeroTerm provides a terminal, not intent. Use it for education and research,
-and follow local laws and network policies. See docs/SECURITY.md.
-
----
-
-## Project Status
-
-This repository represents the foundation and architecture of ZeroTerm.
-Implementation is intentionally incremental, focusing on:
-- Correctness
-- Simplicity
-- Transparency
-
----
+## Status API & Power Presets
+- GET `/api/status` for battery percent, power state, and active profile.
+- POST `/api/power` with `{"profile":"eco"}` to change presets.
+- CLI helper: `sudo zeroterm-power eco` / `balanced` / `performance` / `default`.
 
 ## Implementation (Baseline)
-
-This repository includes a minimal, framework-free baseline:
-
-- Python 3 standard library PTY-over-WebSocket service
-- Minimal HTML/CSS/JS terminal client
+- Python 3 standard library PTY-over-WebSocket server
+- Minimal web terminal client (no frontend framework)
 - systemd units for terminal + e-Paper status
 - Environment-based configuration
 
----
-
 ## Documentation
-
-- docs/ARCHITECTURE.md
-- docs/SETUP_PI_ZERO.md
-- docs/SECURITY.md
-
----
+- docs/ARCHITECTURE.md - system flow, protocol, and renderer behavior
+- docs/SETUP_PI_ZERO.md - installation and runtime setup
+- docs/CONFIG_EXAMPLES.md - ready-to-use config samples
+- docs/SECURITY.md - operational notes
 
 ## License
-
 MIT License
-
----
-
-## One-Line Summary
-
-ZeroTerm turns a Raspberry Pi Zero 2 W into a fully headless Kali Linux node,
-controlled entirely via a real web-based TTY from an iPad - nothing more,
-nothing less.
