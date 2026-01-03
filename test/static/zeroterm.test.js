@@ -981,7 +981,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 18px;
         letter-spacing: 0.08em;
       }
       .epaper-debug__face-text {
