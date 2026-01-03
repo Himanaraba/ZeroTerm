@@ -81,7 +81,8 @@ def main() -> None:
     )
 
     last_payload = None
-    render_failed = False
+    next_render_attempt = 0.0
+    render_failures = 0
 
     while True:
         try:
@@ -108,7 +109,8 @@ def main() -> None:
                     cpu_text,
                 ]
             )
-            if payload != last_payload and not render_failed:
+            now = time.monotonic()
+            if payload != last_payload and now >= next_render_attempt:
                 try:
                     image = render_status(
                         status=status,
@@ -125,9 +127,13 @@ def main() -> None:
                         config=render_config,
                     )
                 except RuntimeError as exc:
-                    logger.error("Render failed: %s", exc)
-                    render_failed = True
+                    render_failures += 1
+                    backoff = min(60, max(config.interval, 5) * render_failures)
+                    next_render_attempt = now + backoff
+                    logger.error("Render failed (backoff %ss): %s", backoff, exc)
                     continue
+                render_failures = 0
+                next_render_attempt = 0.0
                 try:
                     display.show(image)
                 except DisplayError as exc:

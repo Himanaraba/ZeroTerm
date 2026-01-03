@@ -41,6 +41,7 @@ class SystemInfo:
 
 
 _CPU_SAMPLE: tuple[int, int] | None = None
+_COMMAND_TIMEOUT = 3.0
 
 
 def _run_command(args: list[str]) -> str | None:
@@ -51,8 +52,9 @@ def _run_command(args: list[str]) -> str | None:
             stderr=subprocess.DEVNULL,
             text=True,
             check=False,
+            timeout=_COMMAND_TIMEOUT,
         )
-    except OSError:
+    except (OSError, subprocess.TimeoutExpired):
         return None
     output = result.stdout.strip()
     return output if output else None
