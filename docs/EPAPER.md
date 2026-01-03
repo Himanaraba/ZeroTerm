@@ -73,6 +73,18 @@ ZEROTERM_EPAPER_OUTPUT=/var/lib/zeroterm/epaper.png
 
 This writes the status image to a PNG file for verification.
 
+Quick sample render (no hardware required):
+
+```
+python3 scripts/render_status_sample.py --output /tmp/zeroterm_epaper.png
+```
+
+Use live metrics when available:
+
+```
+python3 scripts/render_status_sample.py --live
+```
+
 ## Notes
 
 - Refresh is throttled to avoid unnecessary e-Paper updates.
