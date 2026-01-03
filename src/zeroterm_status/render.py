@@ -325,6 +325,8 @@ def render_status(
     wifi: str,
     battery: str,
     adapter: str | None,
+    power: str | None,
+    alert: str | None,
     temp: str,
     load: str,
     uptime: str,
@@ -456,8 +458,15 @@ def render_status(
         adapter_line = _fit_text(draw, f"EXT {adapter.upper()}", font_small, right_width - 4)
         draw.text((message_x, message_y), adapter_line, font=font_small, fill=0)
         message_y += _text_height(font_small) + 2
-    else:
-        message_y += 2
+    if power:
+        power_line = _fit_text(draw, f"PWR {power}", font_small, right_width - 4)
+        draw.text((message_x, message_y), power_line, font=font_small, fill=0)
+        message_y += _text_height(font_small) + 2
+    if alert:
+        alert_line = _fit_text(draw, f"ALRT {alert}", font_small, right_width - 4)
+        draw.text((message_x, message_y), alert_line, font=font_small, fill=0)
+        message_y += _text_height(font_small) + 2
+    message_y += 2
 
     metrics_top = body_bottom - (_text_height(font_body) + _text_height(font_small) + 6)
     if metrics_top < message_y:

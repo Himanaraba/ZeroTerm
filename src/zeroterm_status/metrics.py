@@ -348,3 +348,48 @@ def read_system() -> SystemInfo:
         mem_percent=read_memory_percent(),
         cpu_percent=read_cpu_percent(),
     )
+
+
+def read_time_sync() -> bool | None:
+    if shutil.which("timedatectl") is None:
+        return None
+    output = _run_command(["timedatectl", "show", "-p", "NTPSynchronized", "--value"])
+    if output:
+        value = output.strip().lower()
+        if value in {"yes", "no"}:
+            return value == "yes"
+    status = _run_command(["timedatectl", "status"])
+    if not status:
+        return None
+    for line in status.splitlines():
+        if "System clock synchronized" in line:
+            _, _, tail = line.partition(":")
+            value = tail.strip().lower()
+            if value in {"yes", "no"}:
+                return value == "yes"
+    return None
+
+
+def read_update_available(
+    repo_path: str | None,
+    remote: str,
+    branch: str,
+    fetch: bool,
+) -> bool | None:
+    if not repo_path:
+        return None
+    if shutil.which("git") is None:
+        return None
+    repo = Path(repo_path)
+    if not repo.exists():
+        return None
+    if fetch:
+        _run_command(["git", "-C", str(repo), "fetch", "--quiet", remote])
+    output = _run_command(["git", "-C", str(repo), "rev-list", "--count", f"HEAD..{remote}/{branch}"])
+    if not output:
+        return None
+    try:
+        count = int(output.strip())
+    except ValueError:
+        return None
+    return count > 0

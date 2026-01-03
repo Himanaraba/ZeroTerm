@@ -38,3 +38,9 @@ class TestStatusMainHelpers(unittest.TestCase):
         with mock.patch("zeroterm_status.main.datetime", FixedLateNight):
             interval = main._select_interval(config, 15)
         self.assertEqual(interval, 120)
+
+    def test_format_power_state(self) -> None:
+        self.assertEqual(main._format_power_state("Charging"), "CHG")
+        self.assertEqual(main._format_power_state("Discharging"), "DIS")
+        self.assertEqual(main._format_power_state("Full"), "FULL")
+        self.assertEqual(main._format_power_state("Unknown"), "UNK")

@@ -54,6 +54,8 @@ class TestRenderOutput(unittest.TestCase):
                 wifi="UP TEST",
                 battery="55% CHARGING",
                 adapter="wlan1",
+                power="CHG",
+                alert="UPD",
                 temp="42C",
                 load="0.42",
                 uptime="1h2m",

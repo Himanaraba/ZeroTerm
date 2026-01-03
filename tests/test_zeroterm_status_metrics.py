@@ -72,3 +72,21 @@ class TestMetricsHelpers(unittest.TestCase):
         self.assertEqual(info.state, "up")
         self.assertEqual(info.ssid, "TEST")
         self.assertEqual(info.ip, "10.0.0.5")
+
+    def test_read_time_sync_yes(self) -> None:
+        with mock.patch("zeroterm_status.metrics.shutil.which", return_value="/bin/timedatectl"):
+            with mock.patch("zeroterm_status.metrics._run_command", return_value="yes"):
+                self.assertTrue(metrics.read_time_sync())
+
+    def test_read_time_sync_no(self) -> None:
+        with mock.patch("zeroterm_status.metrics.shutil.which", return_value="/bin/timedatectl"):
+            with mock.patch("zeroterm_status.metrics._run_command", return_value="no"):
+                self.assertFalse(metrics.read_time_sync())
+
+    def test_read_update_available(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with mock.patch("zeroterm_status.metrics.shutil.which", return_value="/bin/git"):
+                with mock.patch("zeroterm_status.metrics._run_command", return_value="2"):
+                    self.assertTrue(
+                        metrics.read_update_available(temp_dir, "origin", "main", fetch=False)
+                    )

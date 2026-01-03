@@ -23,6 +23,15 @@ class TestStatusConfig(unittest.TestCase):
                 "ZEROTERM_STATUS_METRICS_INTERVAL": "45",
                 "ZEROTERM_STATUS_IDLE_INTERVAL": "90",
                 "ZEROTERM_STATUS_WIFI_SSID": "0",
+                "ZEROTERM_BATTERY_LOG_PATH": "/tmp/battery.csv",
+                "ZEROTERM_BATTERY_LOG_INTERVAL": "300",
+                "ZEROTERM_POWER_LOG_PATH": "/tmp/power.log",
+                "ZEROTERM_UPDATE_CHECK": "1",
+                "ZEROTERM_UPDATE_INTERVAL": "600",
+                "ZEROTERM_UPDATE_PATH": "/opt/zeroterm",
+                "ZEROTERM_UPDATE_REMOTE": "origin",
+                "ZEROTERM_UPDATE_BRANCH": "main",
+                "ZEROTERM_UPDATE_FETCH": "1",
             }
         ):
             config = load_config()
@@ -39,6 +48,15 @@ class TestStatusConfig(unittest.TestCase):
         self.assertEqual(config.metrics_interval, 45)
         self.assertEqual(config.idle_interval, 90)
         self.assertFalse(config.wifi_ssid)
+        self.assertEqual(config.battery_log_path, "/tmp/battery.csv")
+        self.assertEqual(config.battery_log_interval, 300)
+        self.assertEqual(config.power_log_path, "/tmp/power.log")
+        self.assertTrue(config.update_check)
+        self.assertEqual(config.update_interval, 600)
+        self.assertEqual(config.update_path, "/opt/zeroterm")
+        self.assertEqual(config.update_remote, "origin")
+        self.assertEqual(config.update_branch, "main")
+        self.assertTrue(config.update_fetch)
 
     def test_clamping(self) -> None:
         with temp_env(
@@ -52,3 +70,9 @@ class TestStatusConfig(unittest.TestCase):
         self.assertEqual(config.night_start, 22)
         self.assertEqual(config.night_end, 6)
         self.assertEqual(config.low_battery_threshold, 100)
+
+    def test_profile_defaults(self) -> None:
+        with temp_env({"ZEROTERM_STATUS_PROFILE": "eco"}):
+            config = load_config()
+        self.assertGreaterEqual(config.interval, 60)
+        self.assertEqual(config.wifi_ssid, False)

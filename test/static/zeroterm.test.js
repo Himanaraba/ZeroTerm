@@ -1095,6 +1095,8 @@
             <div data-line="msg-main"></div>
             <div class="epaper-debug__message-sub" data-line="msg-sub"></div>
             <div class="epaper-debug__message-sub" data-line="msg-ext"></div>
+            <div class="epaper-debug__message-sub" data-line="msg-power"></div>
+            <div class="epaper-debug__message-sub" data-line="msg-alert"></div>
           </div>
           <div class="epaper-debug__metrics">
             <div>
@@ -1128,6 +1130,8 @@
     const msgMainEl = panel.querySelector('[data-line="msg-main"]');
     const msgSubEl = panel.querySelector('[data-line="msg-sub"]');
     const msgExtEl = panel.querySelector('[data-line="msg-ext"]');
+    const msgPowerEl = panel.querySelector('[data-line="msg-power"]');
+    const msgAlertEl = panel.querySelector('[data-line="msg-alert"]');
     const batPercentEl = panel.querySelector('[data-line="bat-percent"]');
     const batFillEl = panel.querySelector(".epaper-debug__battery-fill");
     const memEl = panel.querySelector('[data-line="mem"]');
@@ -1147,6 +1151,14 @@
       const ssid = ssids[Math.floor(Math.random() * ssids.length)];
       const extIface = Math.random() > 0.6 ? "wlan1" : null;
       const battery = Math.floor(40 + Math.random() * 55);
+      const powerState = battery < 20 ? "LOW" : Math.random() > 0.5 ? "CHG" : "DIS";
+      const alertFlags = [];
+      if (Math.random() > 0.9) {
+        alertFlags.push("TIME");
+      }
+      if (Math.random() > 0.92) {
+        alertFlags.push("UPD");
+      }
       const load = (Math.random() * 0.9 + 0.1).toFixed(2);
       const temp = Math.floor(36 + Math.random() * 10);
       const mem = Math.floor(30 + Math.random() * 50);
@@ -1173,6 +1185,8 @@
       msgMainEl.textContent = `STATE ${status}`;
       msgSubEl.textContent = `SSID ${ssid}`;
       msgExtEl.textContent = extIface ? `EXT ${extIface.toUpperCase()}` : "";
+      msgPowerEl.textContent = `PWR ${powerState}`;
+      msgAlertEl.textContent = alertFlags.length ? `ALRT ${alertFlags.join(" ")}` : "";
       batPercentEl.textContent = `${battery}%`;
       batFillEl.style.width = `${battery}%`;
       memEl.textContent = `${mem}%`;
