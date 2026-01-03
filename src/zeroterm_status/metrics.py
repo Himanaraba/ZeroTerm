@@ -46,7 +46,7 @@ _COMMAND_TIMEOUT = 3.0
 
 def _run_command(args: list[str]) -> str | None:
     try:
-        result = subprocess.run(
+        result: subprocess.CompletedProcess[str] = subprocess.run(
             args,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
