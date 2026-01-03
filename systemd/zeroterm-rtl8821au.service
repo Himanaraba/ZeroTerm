@@ -1,0 +1,15 @@
+[Unit]
+Description=ZeroTerm RTL8821AU Monitor Mode Setup and Check
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/zeroterm
+EnvironmentFile=/etc/zeroterm/zeroterm.env
+ExecStart=/opt/zeroterm/scripts/rtl8821au_setup.sh
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
