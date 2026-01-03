@@ -427,13 +427,6 @@ def render_status(
         left_x1 - 2,
         body_bottom - battery_block - 4,
     )
-    face_size = min(face_box[2] - face_box[0], face_box[3] - face_box[1])
-    face_box = (
-        face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2),
-        face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2),
-        face_box[0] + max(0, (face_box[2] - face_box[0] - face_size) // 2) + face_size,
-        face_box[1] + max(0, (face_box[3] - face_box[1] - face_size) // 2) + face_size,
-    )
     face_text = _pick_face(status_text, battery_percent)
     if face_box[2] > face_box[0] and face_box[3] > face_box[1]:
         face_text = _fit_text(draw, face_text, font_face, face_box[2] - face_box[0] - 4)

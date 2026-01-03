@@ -971,8 +971,6 @@
       }
       .epaper-debug__face-wrap {
         flex: 1;
-        border: 1px solid #111;
-        border-radius: 50%;
         display: grid;
         place-items: center;
         padding: 4px;
@@ -980,8 +978,6 @@
       .epaper-debug__face {
         width: 100%;
         height: 100%;
-        border: 1px solid #111;
-        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
