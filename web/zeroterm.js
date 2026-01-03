@@ -110,6 +110,10 @@
       this.csiBuffer = "";
       this.oscBuffer = "";
       this.decoder = decoder;
+      this.scrollTop = 0;
+      this.scrollBottom = rows - 1;
+      this.dirtyRows = new Set();
+      this.dirtyAll = true;
     }
 
     resize(rows, cols) {
@@ -125,6 +129,9 @@
       this.cols = cols;
       this.cursorRow = Math.min(this.cursorRow, rows - 1);
       this.cursorCol = Math.min(this.cursorCol, cols - 1);
+      this.scrollTop = 0;
+      this.scrollBottom = rows - 1;
+      this._markAllDirty();
     }
 
     write(bytes) {
@@ -137,6 +144,28 @@
     renderText() {
       const screen = this._activeScreen();
       return screen.map((line) => this._renderLine(line)).join("\n");
+    }
+
+    renderRow(row) {
+      const screen = this._activeScreen();
+      if (row < 0 || row >= screen.length) {
+        return "";
+      }
+      return this._renderLine(screen[row]);
+    }
+
+    consumeDirtyRows() {
+      if (this.dirtyAll) {
+        this.dirtyAll = false;
+        this.dirtyRows.clear();
+        return { all: true, rows: [] };
+      }
+      if (this.dirtyRows.size === 0) {
+        return null;
+      }
+      const rows = Array.from(this.dirtyRows);
+      this.dirtyRows.clear();
+      return { all: false, rows };
     }
 
     _processChar(ch) {
@@ -189,6 +218,21 @@
         if (ch === "8") {
           this.cursorRow = this.savedCursor.row;
           this.cursorCol = this.savedCursor.col;
+          this.state = "normal";
+          return;
+        }
+        if (ch === "D") {
+          this._lineFeed();
+          this.state = "normal";
+          return;
+        }
+        if (ch === "M") {
+          this._reverseIndex();
+          this.state = "normal";
+          return;
+        }
+        if (ch === "c") {
+          this._reset();
           this.state = "normal";
           return;
         }
@@ -289,12 +333,58 @@
           this.cursorCol = Math.max(0, Math.min(this.cols - 1, col));
           break;
         }
+        case "d": {
+          const row = toInt(parts[0], 1) - 1;
+          this.cursorRow = Math.max(0, Math.min(this.rows - 1, row));
+          break;
+        }
         case "H":
         case "f": {
           const row = toInt(parts[0], 1) - 1;
           const col = toInt(parts[1], 1) - 1;
           this.cursorRow = Math.max(0, Math.min(this.rows - 1, row));
           this.cursorCol = Math.max(0, Math.min(this.cols - 1, col));
+          break;
+        }
+        case "r": {
+          const top = toIntAllowZero(parts[0], 1);
+          const bottom = toIntAllowZero(parts[1], this.rows);
+          this._setScrollRegion(top, bottom);
+          break;
+        }
+        case "L": {
+          const count = toInt(parts[0], 1);
+          this._insertLines(count);
+          break;
+        }
+        case "M": {
+          const count = toInt(parts[0], 1);
+          this._deleteLines(count);
+          break;
+        }
+        case "S": {
+          const count = toInt(parts[0], 1);
+          this._scrollRegionUp(count);
+          break;
+        }
+        case "T": {
+          const count = toInt(parts[0], 1);
+          this._scrollRegionDown(count);
+          break;
+        }
+        case "@": {
+          const count = toInt(parts[0], 1);
+          this._insertChars(count);
+          break;
+        }
+        case "P": {
+          const count = toInt(parts[0], 1);
+          this._deleteChars(count);
+          break;
+        }
+        case "X": {
+          const count = toInt(parts[0], 1);
+          this._eraseChars(count);
           break;
         }
         case "J": {
@@ -340,6 +430,7 @@
     }
 
     _useAltScreen(enable) {
+      const wasAlt = this.useAlt;
       if (enable && !this.useAlt) {
         this.mainCursor = { row: this.cursorRow, col: this.cursorCol };
         this.useAlt = true;
@@ -352,6 +443,11 @@
         this.cursorRow = this.mainCursor.row;
         this.cursorCol = this.mainCursor.col;
       }
+      if (this.useAlt !== wasAlt) {
+        this.scrollTop = 0;
+        this.scrollBottom = this.rows - 1;
+        this._markAllDirty();
+      }
     }
 
     _writeChar(ch) {
@@ -363,6 +459,7 @@
       }
       const screen = this._activeScreen();
       screen[this.cursorRow][this.cursorCol] = this._makeCell(ch);
+      this._markDirty(this.cursorRow);
       this.cursorCol += 1;
       if (this.cursorCol >= this.cols) {
         this.cursorCol = 0;
@@ -371,11 +468,12 @@
     }
 
     _lineFeed() {
-      this.cursorRow += 1;
-      if (this.cursorRow >= this.rows) {
-        this.cursorRow = this.rows - 1;
-        this._scrollUp();
+      if (this.cursorRow >= this.scrollBottom) {
+        this.cursorRow = this.scrollBottom;
+        this._scrollRegionUp(1);
+        return;
       }
+      this.cursorRow = Math.min(this.rows - 1, this.cursorRow + 1);
     }
 
     _tab() {
@@ -387,9 +485,177 @@
     }
 
     _scrollUp() {
+      this._scrollRegionUp(1);
+    }
+
+    _reverseIndex() {
+      if (this.cursorRow <= this.scrollTop) {
+        this.cursorRow = this.scrollTop;
+        this._scrollRegionDown(1);
+        return;
+      }
+      this.cursorRow = Math.max(0, this.cursorRow - 1);
+    }
+
+    _reset() {
+      this.useAlt = false;
+      this.screen = this._createScreen(this.rows, this.cols);
+      this.altScreen = this._createScreen(this.rows, this.cols);
+      this.cursorRow = 0;
+      this.cursorCol = 0;
+      this.cursorVisible = true;
+      this.savedCursor = { row: 0, col: 0 };
+      this.mainCursor = { row: 0, col: 0 };
+      this.altCursor = { row: 0, col: 0 };
+      this.fg = null;
+      this.bg = null;
+      this.bold = false;
+      this.inverse = false;
+      this.state = "normal";
+      this.csiBuffer = "";
+      this.oscBuffer = "";
+      this.scrollTop = 0;
+      this.scrollBottom = this.rows - 1;
+      this._markAllDirty();
+    }
+
+    _setScrollRegion(top, bottom) {
+      const resolvedTop = Math.max(0, top - 1);
+      const resolvedBottom = Math.min(this.rows - 1, bottom - 1);
+      if (resolvedTop >= resolvedBottom) {
+        this.scrollTop = 0;
+        this.scrollBottom = this.rows - 1;
+      } else {
+        this.scrollTop = resolvedTop;
+        this.scrollBottom = resolvedBottom;
+      }
+      this.cursorRow = this.scrollTop;
+      this.cursorCol = 0;
+    }
+
+    _insertLines(count) {
+      if (this.cursorRow < this.scrollTop || this.cursorRow > this.scrollBottom) {
+        return;
+      }
       const screen = this._activeScreen();
-      screen.shift();
-      screen.push(this._blankLine(this.cols, this._currentAttrs()));
+      const max = this.scrollBottom - this.cursorRow + 1;
+      const total = Math.min(count, max);
+      if (total <= 0) {
+        return;
+      }
+      for (let i = 0; i < total; i += 1) {
+        screen.splice(this.cursorRow, 0, this._blankLine(this.cols, this._currentAttrs()));
+        screen.splice(this.scrollBottom + 1, 1);
+      }
+      this._markDirtyRange(this.cursorRow, this.scrollBottom);
+    }
+
+    _deleteLines(count) {
+      if (this.cursorRow < this.scrollTop || this.cursorRow > this.scrollBottom) {
+        return;
+      }
+      const screen = this._activeScreen();
+      const max = this.scrollBottom - this.cursorRow + 1;
+      const total = Math.min(count, max);
+      if (total <= 0) {
+        return;
+      }
+      for (let i = 0; i < total; i += 1) {
+        screen.splice(this.cursorRow, 1);
+        screen.splice(this.scrollBottom, 0, this._blankLine(this.cols, this._currentAttrs()));
+      }
+      this._markDirtyRange(this.cursorRow, this.scrollBottom);
+    }
+
+    _scrollRegionUp(count) {
+      const screen = this._activeScreen();
+      const height = this.scrollBottom - this.scrollTop + 1;
+      const total = Math.min(count, height);
+      if (total <= 0) {
+        return;
+      }
+      for (let i = 0; i < total; i += 1) {
+        screen.splice(this.scrollTop, 1);
+        screen.splice(this.scrollBottom, 0, this._blankLine(this.cols, this._currentAttrs()));
+      }
+      this._markDirtyRange(this.scrollTop, this.scrollBottom);
+    }
+
+    _scrollRegionDown(count) {
+      const screen = this._activeScreen();
+      const height = this.scrollBottom - this.scrollTop + 1;
+      const total = Math.min(count, height);
+      if (total <= 0) {
+        return;
+      }
+      for (let i = 0; i < total; i += 1) {
+        screen.splice(this.scrollBottom, 1);
+        screen.splice(this.scrollTop, 0, this._blankLine(this.cols, this._currentAttrs()));
+      }
+      this._markDirtyRange(this.scrollTop, this.scrollBottom);
+    }
+
+    _insertChars(count) {
+      if (this.cursorRow < 0 || this.cursorRow >= this.rows) {
+        return;
+      }
+      if (this.cursorCol < 0 || this.cursorCol >= this.cols) {
+        return;
+      }
+      const line = this._activeScreen()[this.cursorRow];
+      const total = Math.min(count, this.cols - this.cursorCol);
+      if (total <= 0) {
+        return;
+      }
+      for (let col = this.cols - 1; col >= this.cursorCol + total; col -= 1) {
+        line[col] = line[col - total];
+      }
+      const attrs = this._currentAttrs();
+      for (let col = 0; col < total; col += 1) {
+        line[this.cursorCol + col] = this._blankCell(attrs);
+      }
+      this._markDirty(this.cursorRow);
+    }
+
+    _deleteChars(count) {
+      if (this.cursorRow < 0 || this.cursorRow >= this.rows) {
+        return;
+      }
+      if (this.cursorCol < 0 || this.cursorCol >= this.cols) {
+        return;
+      }
+      const line = this._activeScreen()[this.cursorRow];
+      const total = Math.min(count, this.cols - this.cursorCol);
+      if (total <= 0) {
+        return;
+      }
+      for (let col = this.cursorCol; col < this.cols - total; col += 1) {
+        line[col] = line[col + total];
+      }
+      const attrs = this._currentAttrs();
+      for (let col = this.cols - total; col < this.cols; col += 1) {
+        line[col] = this._blankCell(attrs);
+      }
+      this._markDirty(this.cursorRow);
+    }
+
+    _eraseChars(count) {
+      if (this.cursorRow < 0 || this.cursorRow >= this.rows) {
+        return;
+      }
+      if (this.cursorCol < 0 || this.cursorCol >= this.cols) {
+        return;
+      }
+      const line = this._activeScreen()[this.cursorRow];
+      const total = Math.min(count, this.cols - this.cursorCol);
+      if (total <= 0) {
+        return;
+      }
+      const attrs = this._currentAttrs();
+      for (let col = this.cursorCol; col < this.cursorCol + total; col += 1) {
+        line[col] = this._blankCell(attrs);
+      }
+      this._markDirty(this.cursorRow);
     }
 
     _eraseDisplay(mode) {
@@ -399,6 +665,7 @@
         for (let row = 0; row < this.rows; row += 1) {
           screen[row] = this._blankLine(this.cols, attrs);
         }
+        this._markAllDirty();
         return;
       }
       if (mode === 1) {
@@ -409,6 +676,7 @@
             screen[row][col] = this._blankCell(attrs);
           }
         }
+        this._markDirtyRange(0, this.cursorRow);
         return;
       }
       const row = this.cursorRow;
@@ -418,6 +686,7 @@
       for (let r = row + 1; r < this.rows; r += 1) {
         screen[r] = this._blankLine(this.cols, attrs);
       }
+      this._markDirtyRange(row, this.rows - 1);
     }
 
     _eraseLine(mode) {
@@ -425,17 +694,20 @@
       const attrs = this._currentAttrs();
       if (mode === 2) {
         screen[this.cursorRow] = this._blankLine(this.cols, attrs);
+        this._markDirty(this.cursorRow);
         return;
       }
       if (mode === 1) {
         for (let col = 0; col <= this.cursorCol; col += 1) {
           screen[this.cursorRow][col] = this._blankCell(attrs);
         }
+        this._markDirty(this.cursorRow);
         return;
       }
       for (let col = this.cursorCol; col < this.cols; col += 1) {
         screen[this.cursorRow][col] = this._blankCell(attrs);
       }
+      this._markDirty(this.cursorRow);
     }
 
     _createScreen(rows, cols) {
@@ -503,6 +775,32 @@
 
     _activeScreen() {
       return this.useAlt ? this.altScreen : this.screen;
+    }
+
+    _markDirty(row) {
+      if (this.dirtyAll) {
+        return;
+      }
+      if (row < 0 || row >= this.rows) {
+        return;
+      }
+      this.dirtyRows.add(row);
+    }
+
+    _markDirtyRange(start, end) {
+      if (this.dirtyAll) {
+        return;
+      }
+      const from = Math.max(0, start);
+      const to = Math.min(this.rows - 1, end);
+      for (let row = from; row <= to; row += 1) {
+        this.dirtyRows.add(row);
+      }
+    }
+
+    _markAllDirty() {
+      this.dirtyAll = true;
+      this.dirtyRows.clear();
     }
 
     _handleSgr(parts) {
@@ -665,6 +963,7 @@
       this.origin = { x: 0, y: 0 };
       this.emulator = new TerminalEmulator(24, 80);
       this.renderPending = false;
+      this.rowEls = [];
     }
 
     resizeToFit() {
@@ -672,6 +971,7 @@
       const cols = Math.max(10, Math.floor(this.textEl.clientWidth / this.cell.width));
       const rows = Math.max(5, Math.floor(this.textEl.clientHeight / this.cell.height));
       this.emulator.resize(rows, cols);
+      this._ensureRows(rows);
       this._updateCursor();
       this._render();
       return { cols, rows };
@@ -694,8 +994,46 @@
     }
 
     _render() {
-      this.textEl.innerHTML = this.emulator.renderText();
+      const dirty = this.emulator.consumeDirtyRows();
+      if (!dirty) {
+        this._updateCursor();
+        return;
+      }
+      this._ensureRows(this.emulator.rows);
+      if (dirty.all) {
+        for (let row = 0; row < this.emulator.rows; row += 1) {
+          this.rowEls[row].innerHTML = this.emulator.renderRow(row);
+        }
+      } else {
+        const rows = dirty.rows;
+        for (const row of rows) {
+          if (row < 0 || row >= this.emulator.rows) {
+            continue;
+          }
+          this.rowEls[row].innerHTML = this.emulator.renderRow(row);
+        }
+      }
       this._updateCursor();
+    }
+
+    _ensureRows(rows) {
+      const current = this.rowEls.length;
+      if (current > rows) {
+        for (let i = rows; i < current; i += 1) {
+          this.rowEls[i].remove();
+        }
+        this.rowEls.length = rows;
+      }
+      if (current < rows) {
+        const fragment = document.createDocumentFragment();
+        for (let i = current; i < rows; i += 1) {
+          const rowEl = document.createElement("div");
+          rowEl.className = "terminal-row";
+          fragment.appendChild(rowEl);
+          this.rowEls.push(rowEl);
+        }
+        this.textEl.appendChild(fragment);
+      }
     }
 
     _measure() {

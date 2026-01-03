@@ -229,6 +229,11 @@ body::after {
   text-shadow: 0 0 12px rgba(0, 0, 0, 0.4);
 }
 
+.terminal-row {
+  min-height: 1.3em;
+  white-space: pre;
+}
+
 .terminal-input {
   position: absolute;
   inset: 0;
